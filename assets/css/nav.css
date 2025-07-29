@@ -704,6 +704,9 @@ body {
     width: 24px;
     height: 24px;
     margin: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .hamburger-line {
@@ -791,6 +794,10 @@ body {
         border: 1px solid var(--border-primary);
         background: rgba(255, 255, 255, 0.02);
         height: var(--nav-element-height);
+    }
+
+    .nav-item {
+        width: 100%;
     }
 
     .nav-actions {
