@@ -16,9 +16,6 @@ window.BluFox = {
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
-});
-
-document.addEventListener('DOMContentLoaded', function() {
     checkAuthStatus();
     
     const urlParams = new URLSearchParams(window.location.search);
@@ -143,7 +140,7 @@ async function exchangeCodeForToken(code) {
         if (response.success) {
             BluFox.user = response.user;
             localStorage.setItem('blufox_user', JSON.stringify(response.user));
-            updateUserUI();
+            updateUserUI(response.user);
             showFlashMessage(`Welcome back, ${response.user.display_name}!`, 'success');
             trackEvent('login_success', { method: 'roblox' });
         } else {
@@ -161,7 +158,7 @@ function checkUserSession() {
     if (savedUser) {
         try {
             BluFox.user = JSON.parse(savedUser);
-            updateUserUI();
+            updateUserUI(BluFox.user);
         } catch (e) {
             localStorage.removeItem('blufox_user');
         }
@@ -169,10 +166,11 @@ function checkUserSession() {
 }
 
 function updateUserUI(user = null) {
+    const actualUser = user || BluFox.user;
     const loginBtns = document.querySelectorAll('.auth-btn, .login-btn');
     const userDropdowns = document.querySelectorAll('.user-dropdown');
     
-    if (user) {
+    if (actualUser) {
         loginBtns.forEach(btn => {
             if (btn) btn.style.display = 'none';
         });
@@ -185,11 +183,11 @@ function updateUserUI(user = null) {
                 const userName = dropdown.querySelector('.user-name');
                 
                 if (userAvatar) {
-                    userAvatar.src = user.avatar_url || '/assets/images/team/placeholder-avatar.jpg';
-                    userAvatar.alt = user.display_name;
+                    userAvatar.src = actualUser.avatar_url || '/assets/images/team/placeholder-avatar.jpg';
+                    userAvatar.alt = actualUser.display_name;
                 }
                 if (userName) {
-                    userName.textContent = user.display_name;
+                    userName.textContent = actualUser.display_name;
                 }
             }
         });
@@ -230,9 +228,8 @@ function loginWithRoblox() {
         
         const authUrl = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
         
-        if (typeof trackEvent === 'function') {
-            trackEvent('login_attempt', { method: 'roblox' });
-        }
+        // Safe track event call
+        safeTrackEvent('login_attempt', { method: 'roblox' });
         
         const loginBtn = document.querySelector('.auth-btn, .login-btn');
         if (loginBtn) {
@@ -258,9 +255,7 @@ function loginWithRoblox() {
         console.error('Login error:', error);
         showFlashMessage('Login failed. Please try again.', 'error');
         
-        if (typeof trackEvent === 'function') {
-            trackEvent('login_error', { method: 'roblox', error: error.message });
-        }
+        safeTrackEvent('login_error', { method: 'roblox', error: error.message });
     }
 }
 
@@ -272,9 +267,7 @@ function logout() {
         localStorage.removeItem('blufox_user');
         sessionStorage.clear();
         
-        if (typeof trackEvent === 'function') {
-            trackEvent('logout');
-        }
+        safeTrackEvent('logout');
         
         showFlashMessage('Logged out successfully', 'info');
         
@@ -333,6 +326,17 @@ function showFlashMessage(message, type = 'info', duration = 5000) {
 }
 
 function initAnalytics() {
+    if (!window.BluFox.analytics) {
+        window.BluFox.analytics = {
+            events: [],
+            pageStartTime: Date.now()
+        };
+    }
+    
+    if (!window.BluFox.analytics.events) {
+        window.BluFox.analytics.events = [];
+    }
+    
     trackEvent('page_view', {
         page: window.location.pathname,
         title: document.title,
@@ -358,8 +362,30 @@ function initAnalytics() {
     });
 }
 
+function safeTrackEvent(eventType, eventData = {}) {
+    try {
+        if (!window.BluFox.analytics) {
+            window.BluFox.analytics = { events: [], pageStartTime: Date.now() };
+        }
+        if (!window.BluFox.analytics.events) {
+            window.BluFox.analytics.events = [];
+        }
+        trackEvent(eventType, eventData);
+    } catch (error) {
+        console.warn('Failed to track event:', eventType, error);
+    }
+}
+
 function trackEvent(eventType, eventData = {}) {
-    BluFox.analytics.events.push({
+    if (!window.BluFox.analytics) {
+        window.BluFox.analytics = { events: [], pageStartTime: Date.now() };
+    }
+    
+    if (!window.BluFox.analytics.events) {
+        window.BluFox.analytics.events = [];
+    }
+    
+    window.BluFox.analytics.events.push({
         type: eventType,
         data: eventData,
         timestamp: Date.now(),
@@ -371,10 +397,12 @@ function trackEvent(eventType, eventData = {}) {
 }
 
 function sendAnalytics() {
-    if (BluFox.analytics.events.length === 0) return;
+    if (!window.BluFox.analytics || !window.BluFox.analytics.events || window.BluFox.analytics.events.length === 0) {
+        return;
+    }
     
     const data = {
-        events: BluFox.analytics.events,
+        events: window.BluFox.analytics.events,
         session_id: getSessionId(),
         csrf_token: BluFox.config.csrfToken
     };
@@ -392,7 +420,7 @@ function sendAnalytics() {
         }).catch(console.error);
     }
     
-    BluFox.analytics.events = [];
+    window.BluFox.analytics.events = [];
 }
 
 function initScrollEffects() {
@@ -419,7 +447,7 @@ function initScrollEffects() {
                 entry.target.classList.add('animate-in');
                 
                 const sectionName = entry.target.id || entry.target.className;
-                trackEvent('section_view', { section: sectionName });
+                safeTrackEvent('section_view', { section: sectionName });
             }
         });
     }, observerOptions);
@@ -509,7 +537,7 @@ async function handleContactForm(formData) {
         
         if (response.success) {
             showFlashMessage('Message sent successfully! We\'ll get back to you soon.', 'success');
-            trackEvent('contact_form_submit', { success: true });
+            safeTrackEvent('contact_form_submit', { success: true });
             return true;
         } else {
             throw new Error(response.message || 'Failed to send message');
@@ -517,7 +545,7 @@ async function handleContactForm(formData) {
     } catch (error) {
         console.error('Contact form error:', error);
         showFlashMessage('Failed to send message. Please try again.', 'error');
-        trackEvent('contact_form_submit', { success: false, error: error.message });
+        safeTrackEvent('contact_form_submit', { success: false, error: error.message });
         return false;
     }
 }
@@ -689,10 +717,12 @@ function checkAuthStatus() {
             if (window.BluFox) {
                 window.BluFox.user = null;
             }
+            updateUserUI(null);
         }
     })
     .catch(error => {
         console.log('Auth status check failed:', error);
+        updateUserUI(null);
     });
 }
 
@@ -707,6 +737,7 @@ window.showFlashMessage = showFlashMessage;
 window.generateRandomString = generateRandomString;
 window.checkAuthStatus = checkAuthStatus;
 window.updateUserUI = updateUserUI;
+window.safeTrackEvent = safeTrackEvent;
 
 window.BluFox.utils = {
     escapeHtml,
@@ -723,7 +754,9 @@ window.BluFox.api = {
     request: apiRequest
 };
 
-window.BluFox.analytics = {
-    track: trackEvent,
-    send: sendAnalytics
-};
+if (!window.BluFox.analytics.track) {
+    window.BluFox.analytics.track = safeTrackEvent;
+}
+if (!window.BluFox.analytics.send) {
+    window.BluFox.analytics.send = sendAnalytics;
+}
