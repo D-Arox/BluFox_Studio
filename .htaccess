@@ -1,4 +1,4 @@
-# BluFox Studio - Fixed Apache Configuration with Updated CSP
+# BluFox Studio - Fixed Apache Configuration with Proper Auth Routing
 
 RewriteEngine On
 
@@ -28,8 +28,8 @@ RewriteEngine On
     Require all denied
 </FilesMatch>
 
-# Deny access to sensitive directories (but explicitly allow dashboard)
-<DirectoryMatch "^(?!.*(dashboard|admin))(database|logs|cache|vendor|node_modules)">
+# Deny access to sensitive directories (but explicitly allow dashboard, auth, admin)
+<DirectoryMatch "^(?!.*(dashboard|admin|auth|assets|includes))(database|logs|cache|vendor|node_modules)">
     Require all denied
 </DirectoryMatch>
 
@@ -47,7 +47,21 @@ RewriteEngine On
     </RequireAll>
 </IfModule>
 
-# URL Rewriting Rules - Dashboard first for priority
+# PRIORITY 1: Direct file access - if file exists, serve it directly
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# PRIORITY 2: Direct directory access - if directory exists, serve it
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# PRIORITY 3: Authentication routes (HIGHEST PRIORITY for URL rewriting)
+RewriteRule ^auth/login/?$ auth/login.php [L,QSA]
+RewriteRule ^auth/callback/?$ auth/callback.php [L,QSA]
+RewriteRule ^auth/logout/?$ auth/logout.php [L,QSA]
+RewriteRule ^auth/set-remember-preference/?$ auth/set-remember-preference.php [L,QSA]
+
+# PRIORITY 4: Dashboard routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^dashboard/?$ dashboard/index.php [L,QSA]
@@ -56,43 +70,82 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^dashboard/([^/]+)/?$ dashboard/$1.php [L,QSA]
 
-# Authentication rules
-RewriteRule ^auth/login/?$ auth/login.php [L,QSA]
-RewriteRule ^auth/callback/?$ auth/callback.php [L,QSA]
-RewriteRule ^auth/logout/?$ auth/logout.php [L,QSA]
-
-# Portfolio rules
-RewriteRule ^portfolio/?$ portfolio/index.php [L,QSA]
-RewriteRule ^portfolio/([^/]+)/?$ portfolio/project.php?slug=$1 [L,QSA]
-
-# Services rules
-RewriteRule ^services/?$ services/index.php [L,QSA]
-RewriteRule ^services/([^/]+)/?$ services/service.php?slug=$1 [L,QSA]
-
-# Admin rules
+# PRIORITY 5: Admin routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^admin/?$ admin/index.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^admin/([^/]+)/?$ admin/$1.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^admin/([^/]+)/([^/]+)/?$ admin/$1/$2.php [L,QSA]
 
-# API rules
+# PRIORITY 6: API routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/([^/]+)/?$ api/$1.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/([^/]+)/([^/]+)/?$ api/$1/$2.php [L,QSA]
 
-# Vantara rules
+# PRIORITY 7: Portfolio routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^portfolio/?$ portfolio/index.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^portfolio/([^/]+)/?$ portfolio/project.php?slug=$1 [L,QSA]
+
+# PRIORITY 8: Services routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^services/?$ services/index.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^services/([^/]+)/?$ services/service.php?slug=$1 [L,QSA]
+
+# PRIORITY 9: Vantara routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^vantara/?$ vantara/index.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^vantara/([^/]+)/?$ vantara/$1.php [L,QSA]
 
-# Static pages
+# PRIORITY 10: Static pages
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^about/?$ pages/about.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^contact/?$ pages/contact.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^privacy/?$ pages/privacy.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^terms/?$ pages/terms.php [L,QSA]
 
-# Profile rules
+# PRIORITY 11: Profile routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^profile/?$ profile/index.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^profile/([^/]+)/?$ profile/$1.php [L,QSA]
 
-# Remove trailing slashes (but check files don't exist first)
+# PRIORITY 12: Remove trailing slashes (LAST PRIORITY)
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.+)/$ /$1 [R=301,L]
@@ -147,7 +200,7 @@ ErrorDocument 500 /errors/500.php
     php_value session.use_strict_mode 1
 </IfModule>
 
-# Security protection
+# Security protection (MOVED TO END to avoid conflicts)
 <IfModule mod_rewrite.c>
     RewriteCond %{QUERY_STRING} (<|%3C)([^s]*s)+cript.*(>|%3E) [NC,OR]
     RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
