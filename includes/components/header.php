@@ -26,6 +26,12 @@ $flashMessage = getFlashMessage();
     <meta property="twitter:description" content="<?php echo escape($metaDescription); ?>">
     <meta property="twitter:image" content="<?php echo SITE_URL; ?>/assets/images/logo/logo.png">
     
+    <meta name="roblox-client-id" content="<?php echo ROBLOX_CLIENT_ID; ?>">
+    <meta name="roblox-redirect-uri" content="<?php echo ROBLOX_REDIRECT_URI; ?>">
+    <meta name="site-url" content="<?php echo SITE_URL; ?>">
+
+    <meta name="csrf-token" content="<?php echo generateCSRFToken(); ?>">
+
     <link rel="icon" type="image/x-icon" href="/assets/images/logo/BluFox_Studio_Logo.svg">
     <link rel="apple-touch-icon" href="/assets/images/logo/BluFox_Studio_Logo.svg">
 
@@ -58,6 +64,34 @@ $flashMessage = getFlashMessage();
             "https://discord.gg/blufox-studio"
         ]
     }
+    </script>
+    <script>
+        window.csrfToken = '<?php echo generateCSRFToken(); ?>';
+        window.siteUrl = '<?php echo SITE_URL; ?>';
+        window.robloxClientId = '<?php echo ROBLOX_CLIENT_ID; ?>';
+        window.robloxRedirectUri = '<?php echo ROBLOX_REDIRECT_URI; ?>';
+        
+        window.BluFox = window.BluFox || {};
+        window.BluFox.config = {
+            apiUrl: '<?php echo SITE_URL; ?>/api',
+            csrfToken: '<?php echo generateCSRFToken(); ?>',
+            robloxClientId: '<?php echo ROBLOX_CLIENT_ID; ?>',
+            robloxRedirectUri: '<?php echo ROBLOX_REDIRECT_URI; ?>',
+            siteUrl: '<?php echo SITE_URL; ?>'
+        };
+        
+        <?php if (Auth::check()): ?>
+        window.BluFox.user = <?php echo json_encode([
+            'id' => $currentUser['id'],
+            'username' => $currentUser['username'],
+            'display_name' => $currentUser['display_name'],
+            'avatar_url' => $currentUser['avatar_url'],
+            'role' => $currentUser['role'],
+            'subscription_tier' => $currentUser['subscription_tier']
+        ]); ?>;
+        <?php else: ?>
+        window.BluFox.user = null;
+        <?php endif; ?>
     </script>
 </head>
 <body class="<?php echo $currentPage; ?>-page">

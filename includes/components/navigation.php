@@ -88,3 +88,36 @@ $isAdmin = Auth::isAdmin();
         </div>
     </div>
 </nav>
+<script>
+    window.loginWithRoblox = function() {
+    const state = generateRandomString(32);
+    sessionStorage.setItem('oauth_state', state);
+    
+    const params = new URLSearchParams({
+        client_id: '<?php echo ROBLOX_CLIENT_ID; ?>',
+        redirect_uri: '<?php echo ROBLOX_REDIRECT_URI; ?>',
+        scope: 'openid profile',
+        response_type: 'code',
+        state: state
+    });
+    
+    const authUrl = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
+    
+    if (typeof trackEvent === 'function') {
+        trackEvent('login_attempt', { method: 'roblox' });
+    }
+    
+    sessionStorage.setItem('login_redirect', window.location.pathname);
+    
+    window.location.href = authUrl;
+};
+
+function generateRandomString(length) {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return result;
+}
+</script>

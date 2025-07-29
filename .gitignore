@@ -11,4 +11,3 @@ database/migrations/005_create_contact_inquiries.sql
 database/seeders/projects.sql>
 database/seeders/users.sql
 database/seeders/services.sql
-includes/config.php

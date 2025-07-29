@@ -18,6 +18,15 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+    checkAuthStatus();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('code') && urlParams.get('state')) {
+        console.log('OAuth callback detected');
+    }
+});
+
 function initializeApp() {
     console.log('BluFox Studio - Initializing...');
 
@@ -159,58 +168,121 @@ function checkUserSession() {
     }
 }
 
-function updateUserUI() {
-    const loginBtn = document.querySelector('.auth-btn');
-    const userDropdown = document.querySelector('.user-dropdown');
+function updateUserUI(user = null) {
+    const loginBtns = document.querySelectorAll('.auth-btn, .login-btn');
+    const userDropdowns = document.querySelectorAll('.user-dropdown');
     
-    if (BluFox.user && loginBtn && userDropdown) {
-        loginBtn.style.display = 'none';
-        userDropdown.style.display = 'block';
+    if (user) {
+        loginBtns.forEach(btn => {
+            if (btn) btn.style.display = 'none';
+        });
         
-        const userAvatar = userDropdown.querySelector('.user-avatar');
-        const userName = userDropdown.querySelector('.user-name');
+        userDropdowns.forEach(dropdown => {
+            if (dropdown) {
+                dropdown.style.display = 'block';
+                
+                const userAvatar = dropdown.querySelector('.user-avatar');
+                const userName = dropdown.querySelector('.user-name');
+                
+                if (userAvatar) {
+                    userAvatar.src = user.avatar_url || '/assets/images/team/placeholder-avatar.jpg';
+                    userAvatar.alt = user.display_name;
+                }
+                if (userName) {
+                    userName.textContent = user.display_name;
+                }
+            }
+        });
+    } else {
+        loginBtns.forEach(btn => {
+            if (btn) btn.style.display = 'flex';
+        });
         
-        if (userAvatar) userAvatar.src = BluFox.user.avatar_url || '/assets/images/team/placeholder-avatar.jpg';
-        if (userName) userName.textContent = BluFox.user.display_name;
+        userDropdowns.forEach(dropdown => {
+            if (dropdown) dropdown.style.display = 'none';
+        });
     }
 }
 
 function loginWithRoblox() {
-    const state = generateRandomString(32);
-    sessionStorage.setItem('oauth_state', state);
-    
-    const params = new URLSearchParams({
-        client_id: BluFox.config.robloxClientId,
-        redirect_uri: BluFox.config.robloxRedirectUri,
-        scope: 'openid profile',
-        response_type: 'code',
-        state: state
-    });
-    
-    const authUrl = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
-    
-    trackEvent('login_attempt', { method: 'roblox' });
-    
-    window.location.href = authUrl;
+    try {
+        const state = generateRandomString(32);
+        sessionStorage.setItem('oauth_state', state);
+        
+        sessionStorage.setItem('login_redirect', window.location.pathname);
+        
+        const clientId = document.querySelector('meta[name="roblox-client-id"]')?.content || 
+                        window.BluFox?.config?.robloxClientId;
+        
+        if (!clientId) {
+            console.error('Roblox Client ID not found');
+            showFlashMessage('Configuration error. Please contact support.', 'error');
+            return;
+        }
+        
+        const params = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: window.location.origin + '/auth/callback',
+            scope: 'openid profile',
+            response_type: 'code',
+            state: state
+        });
+        
+        const authUrl = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
+        
+        if (typeof trackEvent === 'function') {
+            trackEvent('login_attempt', { method: 'roblox' });
+        }
+        
+        const loginBtn = document.querySelector('.auth-btn, .login-btn');
+        if (loginBtn) {
+            loginBtn.style.opacity = '0.7';
+            loginBtn.style.pointerEvents = 'none';
+            const originalText = loginBtn.innerHTML;
+            loginBtn.innerHTML = '<span>Redirecting...</span>';
+            
+            setTimeout(() => {
+                if (loginBtn) {
+                    loginBtn.style.opacity = '1';
+                    loginBtn.style.pointerEvents = 'auto';
+                    loginBtn.innerHTML = originalText;
+                }
+            }, 5000);
+        }
+        
+        console.log('Redirecting to Roblox OAuth:', authUrl);
+        
+        window.location.href = authUrl;
+        
+    } catch (error) {
+        console.error('Login error:', error);
+        showFlashMessage('Login failed. Please try again.', 'error');
+        
+        if (typeof trackEvent === 'function') {
+            trackEvent('login_error', { method: 'roblox', error: error.message });
+        }
+    }
 }
 
 function logout() {
-    BluFox.user = null;
-    localStorage.removeItem('blufox_user');
-    
-    const loginBtn = document.querySelector('.auth-btn');
-    const userDropdown = document.querySelector('.user-dropdown');
-    
-    if (loginBtn && userDropdown) {
-        loginBtn.style.display = 'flex';
-        userDropdown.style.display = 'none';
-    }
-    
-    showFlashMessage('Logged out successfully', 'info');
-    trackEvent('logout');
-    
-    if (window.location.pathname.startsWith('/dashboard') || window.location.pathname.startsWith('/admin')) {
-        window.location.href = '/';
+    try {
+        if (window.BluFox) {
+            window.BluFox.user = null;
+        }
+        localStorage.removeItem('blufox_user');
+        sessionStorage.clear();
+        
+        if (typeof trackEvent === 'function') {
+            trackEvent('logout');
+        }
+        
+        showFlashMessage('Logged out successfully', 'info');
+        
+        window.location.href = '/auth/logout';
+        
+    } catch (error) {
+        console.error('Logout error:', error);
+        window.location.href = '/auth/logout';
     }
 }
 
@@ -234,26 +306,30 @@ function closeFlashMessage() {
     }
 }
 
-function showFlashMessage(message, type = 'info') {
-    const existing = document.getElementById('flash-message');
-    if (existing) {
-        existing.remove();
+function showFlashMessage(message, type = 'info', duration = 5000) {
+    const existingFlash = document.querySelector('.flash-message');
+    if (existingFlash) {
+        existingFlash.remove();
     }
     
-    const flashHtml = `
-        <div class="flash-message flash-${type}" id="flash-message">
-            <div class="container">
-                <span class="flash-text">${escapeHtml(message)}</span>
-                <button class="flash-close" onclick="closeFlashMessage()">&times;</button>
-            </div>
+    const flashDiv = document.createElement('div');
+    flashDiv.className = `flash-message flash-${type}`;
+    flashDiv.innerHTML = `
+        <div class="container">
+            <span class="flash-text">${message}</span>
+            <button class="flash-close" onclick="this.parentElement.parentElement.remove()">&times;</button>
         </div>
     `;
     
-    document.body.insertAdjacentHTML('afterbegin', flashHtml);
+    document.body.insertBefore(flashDiv, document.body.firstChild);
     
-    setTimeout(() => {
-        closeFlashMessage();
-    }, 5000);
+    if (duration > 0) {
+        setTimeout(() => {
+            if (flashDiv && flashDiv.parentNode) {
+                flashDiv.remove();
+            }
+        }, duration);
+    }
 }
 
 function initAnalytics() {
@@ -465,11 +541,21 @@ function debounce(func, wait) {
 }
 
 function generateRandomString(length) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
     let result = '';
-    for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    
+    if (window.crypto && window.crypto.getRandomValues) {
+        const array = new Uint8Array(length);
+        window.crypto.getRandomValues(array);
+        for (let i = 0; i < length; i++) {
+            result += charset[array[i] % charset.length];
+        }
+    } else {
+        for (let i = 0; i < length; i++) {
+            result += charset.charAt(Math.floor(Math.random() * charset.length));
+        }
     }
+    
     return result;
 }
 
@@ -583,6 +669,33 @@ function hideLoading(element) {
     }
 }
 
+function checkAuthStatus() {
+    fetch('/api/auth/status', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.authenticated) {
+            if (window.BluFox) {
+                window.BluFox.user = data.user;
+            }
+            updateUserUI(data.user);
+        } else {
+            localStorage.removeItem('blufox_user');
+            if (window.BluFox) {
+                window.BluFox.user = null;
+            }
+        }
+    })
+    .catch(error => {
+        console.log('Auth status check failed:', error);
+    });
+}
+
 window.toggleMobileMenu = toggleMobileMenu;
 window.toggleUserDropdown = toggleUserDropdown;
 window.closeFlashMessage = closeFlashMessage;
@@ -591,6 +704,9 @@ window.logout = logout;
 window.handleContactForm = handleContactForm;
 window.copyToClipboard = copyToClipboard;
 window.showFlashMessage = showFlashMessage;
+window.generateRandomString = generateRandomString;
+window.checkAuthStatus = checkAuthStatus;
+window.updateUserUI = updateUserUI;
 
 window.BluFox.utils = {
     escapeHtml,
