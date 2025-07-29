@@ -10,6 +10,9 @@ class RobloxAuth {
     private const AUTH_URL = 'https://apis.roblox.com/oauth/v1/authorize';
     private const TOKEN_URL = 'https://apis.roblox.com/oauth/v1/token';
     private const USERINFO_URL = 'https://apis.roblox.com/oauth/v1/userinfo';
+    
+    private const REMEMBER_TOKEN_LIFETIME = 2592000; 
+    private const REMEMBER_COOKIE_NAME = 'blufox_remember_token';
 
     private $client_id;
     private $client_secret;
@@ -50,11 +53,8 @@ class RobloxAuth {
     }
 
     public function getAccessToken($code, $state) {
-        error_log(">>> OAuth callback state received: " . $state);
-        error_log(">>> OAuth session state expected: " . ($_SESSION['oauth_state'] ?? 'null'));
-
         if (!isset($_SESSION['oauth_state']) || $state !== $_SESSION['oauth_state']) {
-            throw new Exception("Invalid state parameter - possible CSRF attack.\nExpected: " . ($_SESSION['oauth_state'] ?? 'null') . "\nGot: " . $state);
+            throw new Exception("Invalid state parameter - possible CSRF attack.");
         }
 
         unset($_SESSION['oauth_state']);
@@ -88,25 +88,57 @@ class RobloxAuth {
             'Accept: application/json'
         ];
 
-        $response = $this->makeHttpRequest(self::USERINFO_URL, 'GET', null, $headers);
-
-        if (!isset($response['sub'])) {
-            throw new Exception('Failed to retrieve user info.');
-        }
-
-        return $response;
+        return $this->makeHttpRequest(self::USERINFO_URL, 'GET', null, $headers);
     }
 
-    public function createOrUpdateUser($userInfo, $tokenData) {
+    private function makeHttpRequest($url, $method, $data = null, $headers = []) {
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_USERAGENT => 'BluFoxStudio/1.0'
+        ]);
+
+        if ($method === 'POST' && $data) {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, is_array($data) ? http_build_query($data) : $data);
+        }
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            throw new Exception("cURL error: $error");
+        }
+
+        if ($httpCode >= 400) {
+            throw new Exception("HTTP error $httpCode: $response");
+        }
+
+        $decoded = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception("JSON decode error: " . json_last_error_msg());
+        }
+
+        return $decoded;
+    }
+
+    public function createOrUpdateUser($userInfo, $tokenData, $rememberMe = false) {
         $db = db();
-        
-        $roblox_id = $userInfo['sub'];
-        $username = $userInfo['preferred_username'] ?? 'Unknown';
-        $display_name = $userInfo['name'] ?? $username;
-        $avatar_url = $userInfo['picture'] ?? null;
         
         try {
             $db->beginTransaction();
+            
+            $roblox_id = $userInfo['sub'];
+            $username = $userInfo['preferred_username'];
+            $display_name = $userInfo['name'] ?? $username;
+            $avatar_url = $userInfo['picture'] ?? null;
             
             $existing_user = $db->fetch(
                 "SELECT * FROM users WHERE roblox_id = ?",
@@ -115,31 +147,22 @@ class RobloxAuth {
             
             if ($existing_user) {
                 $db->query(
-                    "UPDATE users SET 
-                        username = ?, 
-                        display_name = ?, 
-                        avatar_url = ?, 
-                        last_login_at = NOW() 
-                    WHERE roblox_id = ?",
+                    "UPDATE users SET username = ?, display_name = ?, avatar_url = ?, last_login = NOW(), updated_at = NOW() WHERE roblox_id = ?",
                     [$username, $display_name, $avatar_url, $roblox_id]
                 );
                 $user_id = $existing_user['id'];
             } else {
-                $db->query(
-                    "INSERT INTO users (roblox_id, username, display_name, avatar_url, last_login_at) 
-                     VALUES (?, ?, ?, ?, NOW())",
+                $user_id = $db->insert(
+                    "INSERT INTO users (roblox_id, username, display_name, avatar_url, role, created_at, updated_at, last_login) VALUES (?, ?, ?, ?, 'user', NOW(), NOW(), NOW())",
                     [$roblox_id, $username, $display_name, $avatar_url]
                 );
-                $user_id = $db->lastInsertId();
             }
             
-            $session_token = $this->generateSessionToken();
-            $expires_at = date('Y-m-d H:i:s', time() + (7 * 24 * 60 * 60)); // 7 days
+            $session_token = bin2hex(random_bytes(32));
+            $expires_at = date('Y-m-d H:i:s', time() + 3600);
             
             $db->query(
-                "INSERT INTO oauth_sessions 
-                (user_id, session_token, access_token, refresh_token, expires_at, ip_address, user_agent) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO oauth_sessions (user_id, session_token, access_token, refresh_token, expires_at, ip_address, user_agent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
                 [
                     $user_id,
                     $session_token,
@@ -150,6 +173,11 @@ class RobloxAuth {
                     $_SERVER['HTTP_USER_AGENT'] ?? null
                 ]
             );
+            
+            $remember_token = null;
+            if ($rememberMe) {
+                $remember_token = $this->createRememberToken($user_id);
+            }
             
             $db->commit();
             
@@ -164,7 +192,8 @@ class RobloxAuth {
             return [
                 'success' => true,
                 'user_id' => $user_id,
-                'session_token' => $session_token
+                'session_token' => $session_token,
+                'remember_token' => $remember_token
             ];
             
         } catch (Exception $e) {
@@ -173,6 +202,117 @@ class RobloxAuth {
         }
     }
     
+    private function createRememberToken($user_id) {
+        $remember_token = bin2hex(random_bytes(32));
+        $expires_at = date('Y-m-d H:i:s', time() + self::REMEMBER_TOKEN_LIFETIME);
+        
+        try {
+            db()->query(
+                "INSERT INTO remember_tokens (user_id, token, expires_at, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
+                [
+                    $user_id,
+                    hash('sha256', $remember_token),
+                    $expires_at,
+                    $_SERVER['REMOTE_ADDR'] ?? null,
+                    $_SERVER['HTTP_USER_AGENT'] ?? null
+                ]
+            );
+            
+            $this->setRememberCookie($remember_token);
+            
+            return $remember_token;
+            
+        } catch (Exception $e) {
+            error_log("Failed to create remember token: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    private function setRememberCookie($token) {
+        $cookie_options = [
+            'expires' => time() + self::REMEMBER_TOKEN_LIFETIME,
+            'path' => '/',
+            'domain' => '',
+            'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            'httponly' => true,
+            'samesite' => 'Strict'
+        ];
+        
+        setcookie(self::REMEMBER_COOKIE_NAME, $token, $cookie_options);
+    }
+    
+    public function checkRememberToken() {
+        if (!isset($_COOKIE[self::REMEMBER_COOKIE_NAME])) {
+            return false;
+        }
+        
+        $remember_token = $_COOKIE[self::REMEMBER_COOKIE_NAME];
+        $hashed_token = hash('sha256', $remember_token);
+        
+        try {
+            $token_data = db()->fetch(
+                "SELECT rt.*, u.* FROM remember_tokens rt 
+                 JOIN users u ON rt.user_id = u.id 
+                 WHERE rt.token = ? AND rt.expires_at > NOW() AND rt.is_valid = 1",
+                [$hashed_token]
+            );
+            
+            if (!$token_data) {
+                $this->clearRememberCookie();
+                return false;
+            }
+            
+            db()->query(
+                "UPDATE remember_tokens SET last_used = NOW() WHERE id = ?",
+                [$token_data['id']]
+            );
+            
+            $session_token = bin2hex(random_bytes(32));
+            $expires_at = date('Y-m-d H:i:s', time() + 3600); // 1 hour
+            
+            db()->query(
+                "INSERT INTO oauth_sessions (user_id, session_token, expires_at, ip_address, user_agent, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())",
+                [
+                    $token_data['user_id'],
+                    $session_token,
+                    $expires_at,
+                    $_SERVER['REMOTE_ADDR'] ?? null,
+                    $_SERVER['HTTP_USER_AGENT'] ?? null
+                ]
+            );
+            
+            $_SESSION['user_id'] = $token_data['user_id'];
+            $_SESSION['session_token'] = $session_token;
+            $_SESSION['roblox_id'] = $token_data['roblox_id'];
+            $_SESSION['username'] = $token_data['username'];
+            $_SESSION['display_name'] = $token_data['display_name'];
+            $_SESSION['user_avatar'] = $token_data['avatar_url'];
+            $_SESSION['user_role'] = $token_data['role'];
+            
+            return true;
+            
+        } catch (Exception $e) {
+            error_log("Remember token check failed: " . $e->getMessage());
+            $this->clearRememberCookie();
+            return false;
+        }
+    }
+    
+    private function clearRememberCookie() {
+        if (isset($_COOKIE[self::REMEMBER_COOKIE_NAME])) {
+            $cookie_options = [
+                'expires' => time() - 3600,
+                'path' => '/',
+                'domain' => '',
+                'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ];
+            
+            setcookie(self::REMEMBER_COOKIE_NAME, '', $cookie_options);
+        }
+    }
+
     public function verifySession($session_token) {
         $session = db()->fetch(
             "SELECT s.*, u.* FROM oauth_sessions s 
@@ -193,7 +333,7 @@ class RobloxAuth {
         return $session;
     }
     
-    public function logout($session_token = null) {
+    public function logout($session_token = null, $clearRememberToken = true) {
         $session_token = $session_token ?: ($_SESSION['session_token'] ?? null);
         
         if ($session_token) {
@@ -203,166 +343,50 @@ class RobloxAuth {
             );
         }
         
+        if ($clearRememberToken && isset($_COOKIE[self::REMEMBER_COOKIE_NAME])) {
+            $remember_token = $_COOKIE[self::REMEMBER_COOKIE_NAME];
+            $hashed_token = hash('sha256', $remember_token);
+            
+            db()->query(
+                "UPDATE remember_tokens SET is_valid = 0 WHERE token = ?",
+                [$hashed_token]
+            );
+            
+            $this->clearRememberCookie();
+        }
+        
         session_unset();
         session_destroy();
         
         return true;
     }
     
-    private function generateSessionToken() {
-        return bin2hex(random_bytes(32));
+    public function cleanupExpiredTokens() {
+        try {
+            db()->query("DELETE FROM remember_tokens WHERE expires_at < NOW()");
+            db()->query("DELETE FROM oauth_sessions WHERE expires_at < NOW() AND is_active = 0");
+        } catch (Exception $e) {
+            error_log("Token cleanup failed: " . $e->getMessage());
+        }
+    }
+}
+
+function check_auto_login() {
+    if (isset($_SESSION['user_id'])) {
+        return true;
     }
     
-    private function makeHttpRequest($url, $method = 'GET', $data = null, $headers = []) {
-        $curl = curl_init();
-        
-        $default_headers = [
-            'User-Agent: BluFoxStudio/1.0 (https://blufox-studio.com)',
-            'Accept: application/json'
-        ];
-        
-        $headers = array_merge($default_headers, $headers);
-        
-        curl_setopt_array($curl, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 3
-        ]);
-        
-        if ($method === 'POST') {
-            curl_setopt($curl, CURLOPT_POST, true);
-            if ($data) {
-                $content_type_header = null;
-                foreach ($headers as $header) {
-                    if (stripos($header, 'content-type:') === 0) {
-                        $content_type_header = $header;
-                        break;
-                    }
-                }
-                
-                if ($content_type_header && stripos($content_type_header, 'application/json') !== false) {
-                    curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
-                } else {
-                    curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
-                }
-            }
-        }
-        
-        $response = curl_exec($curl);
-        $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        $error = curl_error($curl);
-        
-        if (DEBUG_MODE) {
-            error_log("HTTP Request: $method $url");
-            error_log("HTTP Response Code: $http_code");
-            if ($error) {
-                error_log("cURL Error: $error");
-            }
-        }
-    
-        curl_close($curl);
-        
-        if ($error) {
-            if (DEBUG_MODE) {
-                error_log("cURL Error: " . $error);
-            }
-            throw new Exception("HTTP request failed: " . $error);
-        }
-        
-        if ($http_code >= 400) {
-            if (DEBUG_MODE) {
-                error_log("HTTP Error {$http_code}: " . $response);
-            }
-            throw new Exception("HTTP request failed with status {$http_code}: " . $response);
-        }
-        
-        $decoded_response = json_decode($response, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            if (DEBUG_MODE) {
-                error_log("JSON decode error: " . json_last_error_msg());
-                error_log("Raw response: " . $response);
-            }
-            throw new Exception("Invalid JSON response from server");
-        }
-        
-        return $decoded_response;
-    }
-}
-
-function require_auth() {
-    if (!is_authenticated()) {
-        redirect('/auth/login');
-    }
-}
-
-function require_admin() {
-    require_auth();
-    if (!is_admin()) {
-        redirect('/', 403);
-    }
-}
-
-function is_authenticated() {
-    if (!isset($_SESSION['user_id']) || !isset($_SESSION['session_token'])) {
+    try {
+        $auth = new RobloxAuth();
+        return $auth->checkRememberToken();
+    } catch (Exception $e) {
+        error_log("Auto-login check failed: " . $e->getMessage());
         return false;
     }
-    
-    $auth = new RobloxAuth();
-    $session = $auth->verifySession($_SESSION['session_token']);
-    
-    if (!$session) {
-        logout();
-        return false;
-    }
-    
-    return true;
 }
 
-function is_admin() {
-    return isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin';
-}
-
-function is_moderator() {
-    return isset($_SESSION['user_role']) && in_array($_SESSION['user_role'], ['admin', 'moderator']);
-}
-
-function get_user() {
-    if (!is_authenticated()) {
-        return null;
-    }
-    
-    return [
-        'id' => $_SESSION['user_id'],
-        'roblox_id' => $_SESSION['roblox_id'],
-        'username' => $_SESSION['username'],
-        'display_name' => $_SESSION['display_name'],
-        'avatar_url' => $_SESSION['user_avatar'],
-        'role' => $_SESSION['user_role']
-    ];
-}
-
-function logout() {
-    $auth = new RobloxAuth();
-    $auth->logout();
-}
-
-// Global auth helper functions
-function auth_user() {
-    return get_user();
-}
-
-function auth_check() {
-    return is_authenticated();
-}
-
-function auth_admin() {
-    return is_admin();
+// Auto-initialize check on include
+if (!isset($_SESSION['user_id'])) {
+    check_auto_login();
 }
 ?>

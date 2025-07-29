@@ -104,3 +104,133 @@
     object-fit: contain;
     filter: brightness(1.2);
 }
+
+/*  =====================
+    =====   LOGIN   =====
+    ===================== */
+.remember-me-container {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.remember-me-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.remember-me-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #00b4d8;
+    cursor: pointer;
+}
+
+.remember-me-checkbox label {
+    color: #e0e0e0;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.remember-me-checkbox label:hover {
+    color: #00b4d8;
+}
+
+.auth-options {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.security-note {
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+    margin-top: 10px;
+    line-height: 1.4;
+}
+
+.btn-roblox {
+    background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+    color: white;
+    padding: 15px 30px;
+    border: none;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    width: 100%;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.btn-roblox:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 180, 216, 0.3);
+}
+
+.btn-roblox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.roblox-login-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+    border: 1px solid;
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    color: #fca5a5;
+}
+
+.alert-success {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: #22c55e;
+    color: #86efac;
+}
+
+.loading-spinner {
+    display: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ffffff;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.btn-roblox.loading {
+    pointer-events: none;
+}
+
+.btn-roblox.loading .loading-spinner {
+    display: block;
+}
+
+.btn-roblox.loading .btn-text {
+    display: none;
+}
