@@ -130,13 +130,13 @@ class RobloxAuth {
     }
 
     public function createOrUpdateUser($userInfo, $tokenData, $rememberMe = false) {
-        $db = db();
+        $db = Database::getInstance();
         
         try {
             $db->beginTransaction();
             
             $roblox_id = $userInfo['sub'];
-            $username = $userInfo['preferred_username'];
+            $username = $userInfo['preferred_username'] ?? $userInfo['nickname'] ?? 'User';
             $display_name = $userInfo['name'] ?? $username;
             $avatar_url = $userInfo['picture'] ?? null;
             
@@ -147,15 +147,17 @@ class RobloxAuth {
             
             if ($existing_user) {
                 $db->query(
-                    "UPDATE users SET username = ?, display_name = ?, avatar_url = ?, last_login = NOW(), updated_at = NOW() WHERE roblox_id = ?",
+                    "UPDATE users SET username = ?, display_name = ?, avatar_url = ?, last_login_at = NOW(), updated_at = NOW() WHERE roblox_id = ?",
                     [$username, $display_name, $avatar_url, $roblox_id]
                 );
                 $user_id = $existing_user['id'];
             } else {
-                $user_id = $db->insert(
-                    "INSERT INTO users (roblox_id, username, display_name, avatar_url, role, created_at, updated_at, last_login) VALUES (?, ?, ?, ?, 'user', NOW(), NOW(), NOW())",
+                // Use direct INSERT query instead of $db->insert()
+                $db->query(
+                    "INSERT INTO users (roblox_id, username, display_name, avatar_url, role, created_at, updated_at, last_login_at) VALUES (?, ?, ?, ?, 'user', NOW(), NOW(), NOW())",
                     [$roblox_id, $username, $display_name, $avatar_url]
                 );
+                $user_id = $db->lastInsertId();
             }
             
             $session_token = bin2hex(random_bytes(32));
@@ -385,7 +387,60 @@ function check_auto_login() {
     }
 }
 
-// Auto-initialize check on include
+function logout($session_token = null, $clearRememberToken = true) {
+    try {
+        $auth = new RobloxAuth();
+        return $auth->logout($session_token, $clearRememberToken);
+    } catch (Exception $e) {
+        error_log("Logout function error: " . $e->getMessage());
+        // Fallback - clear session manually
+        session_unset();
+        session_destroy();
+        return true;
+    }
+}
+
+function is_authenticated() {
+    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+}
+
+function get_user() {
+    if (!is_authenticated()) {
+        return null;
+    }
+    
+    return [
+        'id' => $_SESSION['user_id'],
+        'roblox_id' => $_SESSION['roblox_id'] ?? null,
+        'username' => $_SESSION['username'] ?? null,
+        'display_name' => $_SESSION['display_name'] ?? null,
+        'avatar_url' => $_SESSION['user_avatar'] ?? null,
+        'role' => $_SESSION['user_role'] ?? 'user'
+    ];
+}
+
+function require_auth() {
+    if (!is_authenticated()) {
+        $_SESSION['auth_redirect'] = current_url();
+        redirect('/auth/login');
+    }
+}
+
+function require_role($required_role) {
+    require_auth();
+    
+    $user = get_user();
+    $user_role = $user['role'] ?? 'user';
+    
+    $role_hierarchy = ['user' => 1, 'moderator' => 2, 'admin' => 3];
+    
+    if (!isset($role_hierarchy[$user_role]) || 
+        !isset($role_hierarchy[$required_role]) ||
+        $role_hierarchy[$user_role] < $role_hierarchy[$required_role]) {
+        redirect('/dashboard?error=insufficient_permissions');
+    }
+}
+
 if (!isset($_SESSION['user_id'])) {
     check_auto_login();
 }

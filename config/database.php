@@ -97,6 +97,33 @@ class Database {
         }
     }
 
+    public function insert($sql, $params = []) {
+        try {
+            $stmt = $this->query($sql, $params);
+            return $this->lastInsertId();
+        } catch (PDOException $e) {
+            if (DEBUG_MODE) {
+                error_log("Insert Error: " . $e->getMessage() . " | SQL: " . $sql . " | Params: " . json_encode($params));
+            }
+            throw new Exception("Database insert failed");
+        }
+    }
+
+    function db_insert($table, $data) {
+        $db = Database::getInstance();
+        $fields = array_keys($data);
+        $placeholders = ':' . implode(', :', $fields);
+        $sql = "INSERT INTO {$table} (" . implode(', ', $fields) . ") VALUES ({$placeholders})";
+        
+        $params = [];
+        foreach ($data as $key => $value) {
+            $params[':' . $key] = $value;
+        }
+        
+        $stmt = $db->query($sql, $params);
+        return $db->lastInsertId();
+    }
+
     public function fetch($sql, $params = []) {
         $stmt = $this->query($sql, $params);
         return $stmt->fetch();
@@ -146,7 +173,7 @@ class Database {
             'client_version' => $this->connection->getAttribute(PDO::ATTR_CLIENT_VERSION)
         ];
     }
-    
+
     // Prevent cloning and unserialization
     private function __clone() {}
     

@@ -157,6 +157,7 @@
     color: var(--text-secondary);
     margin-bottom: var(--space-8);
     line-height: 1.6;
+    font-family: var(--font-family-sans);
 }
 
 .logout-actions {
@@ -168,6 +169,7 @@
 .btn-danger {
     background: var(--color-red-600);
     color: white;
+    font-family: var(--font-family-sans);
 }
 .btn-danger:hover {
     background: var(--color-red-700);

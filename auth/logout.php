@@ -31,13 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title><?php echo escape_html($page_title); ?></title>
-        <link rel="stylesheet" href="/assets/css/global.css">
-        <link rel="stylesheet" href="/assets/css/components.css">
+        <?php include __DIR__ . '/../includes/components/head.php'; ?>
     </head>
     <body>
+        <?php include __DIR__ . '/../includes/components/header.php'; ?>
         <div class="logout-container">
             <div class="logout-card">
                 <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
