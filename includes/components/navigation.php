@@ -82,7 +82,7 @@
                     </div>
                     <?php else: ?>
                         <!-- User is not logged in -->
-                        <a href="/auth/roblox" class="btn btn-roblox">
+                        <a href="/auth/login" class="btn btn-roblox">
                             <img src="<?php echo asset_url('images/icons/roblox_icon.png'); ?>" alt="Roblox"
                                 class="icon roblox-login-icon">
                             Login with Roblox

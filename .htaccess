@@ -1,0 +1,217 @@
+# BluFox Studio - Apache Configuration
+# Place this file in your public_html directory
+
+# Enable rewrite engine
+RewriteEngine On
+
+# Security Headers
+<IfModule mod_headers.c>
+    # Prevent MIME type sniffing
+    Header always set X-Content-Type-Options nosniff
+    
+    # Prevent clickjacking
+    Header always set X-Frame-Options DENY
+    
+    # XSS protection
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # Referrer policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Content Security Policy (adjust as needed)
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://apis.roblox.com https://authorize.roblox.com"
+    
+    # Remove server signature
+    Header unset Server
+    Header unset X-Powered-By
+</IfModule>
+
+# Hide sensitive files and directories
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<Files ~ "^(composer\.(json|lock)|package\.(json|lock)|\.env.*|.*\.log)$">
+    Require all denied
+</Files>
+
+<DirectoryMatch "^.*(database|logs|cache|vendor|node_modules).*">
+    Require all denied
+</DirectoryMatch>
+
+# Protect PHP configuration files
+<Files "*.php">
+    <RequireAll>
+        Require all granted
+        Require not env badbot
+    </RequireAll>
+</Files>
+
+# Block bad bots and scrapers
+<IfModule mod_setenvif.c>
+    SetEnvIfNoCase User-Agent "^$" badbot
+    SetEnvIfNoCase User-Agent "Scrapy" badbot
+    SetEnvIfNoCase User-Agent "AhrefsBot" badbot
+    SetEnvIfNoCase User-Agent "MJ12bot" badbot
+    SetEnvIfNoCase User-Agent "DotBot" badbot
+    
+    <RequireAll>
+        Require all granted
+        Require not env badbot
+    </RequireAll>
+</IfModule>
+
+# URL Rewriting Rules
+RewriteRule ^auth/login/?$ auth/login.php [L]
+RewriteRule ^auth/callback/?$ auth/callback.php [L]
+RewriteRule ^auth/logout/?$ auth/logout.php [L]
+
+# Portfolio routes
+RewriteRule ^portfolio/?$ portfolio/index.php [L]
+RewriteRule ^portfolio/([^/]+)/?$ portfolio/project.php?slug=$1 [L]
+
+# Services routes
+RewriteRule ^services/?$ services/index.php [L]
+RewriteRule ^services/([^/]+)/?$ services/service.php?slug=$1 [L]
+
+# Admin routes (protected)
+RewriteRule ^admin/?$ admin/index.php [L]
+RewriteRule ^admin/([^/]+)/?$ admin/$1.php [L]
+RewriteRule ^admin/([^/]+)/([^/]+)/?$ admin/$1/$2.php [L]
+
+# API routes
+RewriteRule ^api/([^/]+)/?$ api/$1.php [L]
+RewriteRule ^api/([^/]+)/([^/]+)/?$ api/$1/$2.php [L]
+
+# Vantara Framework showcase
+RewriteRule ^vantara/?$ vantara/index.php [L]
+RewriteRule ^vantara/([^/]+)/?$ vantara/$1.php [L]
+
+# Static pages
+RewriteRule ^about/?$ pages/about.php [L]
+RewriteRule ^contact/?$ pages/contact.php [L]
+RewriteRule ^privacy/?$ pages/privacy.php [L]
+RewriteRule ^terms/?$ pages/terms.php [L]
+
+# Dashboard (requires auth)
+RewriteRule ^dashboard/?$ dashboard/index.php [L]
+RewriteRule ^dashboard/([^/]+)/?$ dashboard/$1.php [L]
+
+# Profile routes
+RewriteRule ^profile/?$ profile/index.php [L]
+RewriteRule ^profile/([^/]+)/?$ profile/$1.php [L]
+
+# Remove trailing slashes (optional)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.+)/$ /$1 [R=301,L]
+
+# Force HTTPS (uncomment if you have SSL)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Cache static assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Images
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    
+    # CSS and JavaScript
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+    ExpiresByType text/javascript "access plus 1 week"
+    
+    # Fonts
+    ExpiresByType font/woff "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 month"
+    ExpiresByType application/font-woff "access plus 1 month"
+    ExpiresByType application/font-woff2 "access plus 1 month"
+    
+    # HTML
+    ExpiresByType text/html "access plus 1 hour"
+</IfModule>
+
+# Gzip compression
+<IfModule mod_deflate.c>
+    # Compress HTML, CSS, JavaScript, Text, XML and fonts
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/vnd.ms-fontobject
+    AddOutputFilterByType DEFLATE application/x-font
+    AddOutputFilterByType DEFLATE application/x-font-opentype
+    AddOutputFilterByType DEFLATE application/x-font-otf
+    AddOutputFilterByType DEFLATE application/x-font-truetype
+    AddOutputFilterByType DEFLATE application/x-font-ttf
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE font/opentype
+    AddOutputFilterByType DEFLATE font/otf
+    AddOutputFilterByType DEFLATE font/ttf
+    AddOutputFilterByType DEFLATE image/svg+xml
+    AddOutputFilterByType DEFLATE image/x-icon
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/xml
+</IfModule>
+
+# Error pages (create these files in your root directory)
+ErrorDocument 400 /errors/400.php
+ErrorDocument 401 /errors/401.php
+ErrorDocument 403 /errors/403.php
+ErrorDocument 404 /errors/404.php
+ErrorDocument 500 /errors/500.php
+
+# PHP Settings
+<IfModule mod_php.c>
+    # Hide PHP version
+    php_flag expose_php off
+    
+    # Increase security
+    php_flag register_globals off
+    php_flag magic_quotes_gpc off
+    
+    # File upload settings
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+    
+    # Memory and execution limits
+    php_value memory_limit 256M
+    php_value max_execution_time 30
+    
+    # Session settings
+    php_value session.cookie_httponly 1
+    php_value session.cookie_secure 1
+    php_value session.use_strict_mode 1
+</IfModule>
+
+# Prevent access to backup files
+<FilesMatch "\.(bak|backup|old|orig|save|swp|tmp)$">
+    Require all denied
+</FilesMatch>
+
+# Block access to common attack patterns
+<IfModule mod_rewrite.c>
+    RewriteCond %{QUERY_STRING} (<|%3C)([^s]*s)+cript.*(>|%3E) [NC,OR]
+    RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+    RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2}) [OR]
+    RewriteCond %{QUERY_STRING} ^.*(\[|\]|\(|\)|<|>|ê|"|;|\?|\*|=$).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(&#x22;|&#x27;|&#x3C;|&#x3E;|&#x5C;|&#x7B;|&#x7C;).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(%24&x).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(127\.0).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(localhost).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(loopback).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(\|id\|whoami).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(cccccc).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(union.*select).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(select.*from).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(drop.*table).* [NC]
+    RewriteRule ^(.*)$ - [F,L]
+</IfModule>

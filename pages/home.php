@@ -1,3 +1,3 @@
-<?php
-
-?>
+<section class="hero-section">
+    
+</section>

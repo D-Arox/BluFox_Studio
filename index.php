@@ -14,5 +14,6 @@ $page_description = "BluFox Studio - Professional Roblox game development, scrip
 </head>
 <body>
     <?php include 'includes/components/header.php'; ?>
+    <?php include 'pages/home.php'; ?>
 </body>
 </html>
