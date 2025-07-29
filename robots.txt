@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /uploads/
+Disallow: /logs/
+Disallow: /cache/
+Disallow: /database/
+Disallow: /config/
+
+# Sitemap
+Sitemap: https://blufox-studio.com/sitemap.xml
