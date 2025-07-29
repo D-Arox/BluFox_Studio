@@ -2,11 +2,11 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
 include_once __DIR__ . '/includes/config.php';
 
 $page_title = "BluFox Studio - Professional Roblox Developement";
 $page_description = "BluFox Studio - Professional Roblox game development, scripting services, and the revolutionary Vantara Framework.";
-
 ?>
 
 <!DOCTYPE html>

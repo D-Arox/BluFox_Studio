@@ -1,0 +1,21 @@
+# Dashboard Access Rules
+Options +FollowSymLinks
+RewriteEngine On
+
+# Allow access to dashboard files
+<Files "*.php">
+    Require all granted
+</Files>
+
+# Allow access to assets
+<FilesMatch "\.(css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$">
+    Require all granted
+</FilesMatch>
+
+# Prevent direct access to sensitive files
+<FilesMatch "^(config|\.env|\.htaccess)">
+    Require all denied
+</FilesMatch>
+
+# Index file handling
+DirectoryIndex index.php index.html

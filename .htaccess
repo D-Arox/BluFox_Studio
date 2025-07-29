@@ -1,4 +1,4 @@
-# BluFox Studio - Simplified Apache Configuration
+# BluFox Studio - Fixed Apache Configuration
 
 RewriteEngine On
 
@@ -28,12 +28,12 @@ RewriteEngine On
     Require all denied
 </FilesMatch>
 
-# Deny access to sensitive directories
-<DirectoryMatch "(database|logs|cache|vendor|node_modules)">
+# Deny access to sensitive directories (but explicitly allow dashboard)
+<DirectoryMatch "^(?!.*(dashboard|admin))(database|logs|cache|vendor|node_modules)">
     Require all denied
 </DirectoryMatch>
 
-# Block bad bots with mod_setenvif (simplified)
+# Block bad bots
 <IfModule mod_setenvif.c>
     SetEnvIfNoCase User-Agent "^$" badbot
     SetEnvIfNoCase User-Agent "Scrapy" badbot
@@ -47,45 +47,55 @@ RewriteEngine On
     </RequireAll>
 </IfModule>
 
-# URL Rewriting Rules
-RewriteRule ^auth/login/?$ auth/login.php [L]
-RewriteRule ^auth/callback/?$ auth/callback.php [L]
-RewriteRule ^auth/logout/?$ auth/logout.php [L]
-
-RewriteRule ^portfolio/?$ portfolio/index.php [L]
-RewriteRule ^portfolio/([^/]+)/?$ portfolio/project.php?slug=$1 [L]
-
-RewriteRule ^services/?$ services/index.php [L]
-RewriteRule ^services/([^/]+)/?$ services/service.php?slug=$1 [L]
-
-RewriteRule ^admin/?$ admin/index.php [L]
-RewriteRule ^admin/([^/]+)/?$ admin/$1.php [L]
-RewriteRule ^admin/([^/]+)/([^/]+)/?$ admin/$1/$2.php [L]
-
-RewriteRule ^api/([^/]+)/?$ api/$1.php [L]
-RewriteRule ^api/([^/]+)/([^/]+)/?$ api/$1/$2.php [L]
-
-RewriteRule ^vantara/?$ vantara/index.php [L]
-RewriteRule ^vantara/([^/]+)/?$ vantara/$1.php [L]
-
-RewriteRule ^about/?$ pages/about.php [L]
-RewriteRule ^contact/?$ pages/contact.php [L]
-RewriteRule ^privacy/?$ pages/privacy.php [L]
-RewriteRule ^terms/?$ pages/terms.php [L]
-
-RewriteRule ^dashboard/?$ dashboard/index.php [L]
-RewriteRule ^dashboard/([^/]+)/?$ dashboard/$1.php [L]
-
-RewriteRule ^profile/?$ profile/index.php [L]
-RewriteRule ^profile/([^/]+)/?$ profile/$1.php [L]
-
-# Remove trailing slashes (except directories)
+# URL Rewriting Rules - Dashboard first for priority
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.+)/$ /$1 [R=301,L]
+RewriteRule ^dashboard/?$ dashboard/index.php [L,QSA]
 
-# Uncomment to force HTTPS (if SSL enabled)
-# RewriteCond %{HTTPS} off
-# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^dashboard/([^/]+)/?$ dashboard/$1.php [L,QSA]
+
+# Authentication rules
+RewriteRule ^auth/login/?$ auth/login.php [L,QSA]
+RewriteRule ^auth/callback/?$ auth/callback.php [L,QSA]
+RewriteRule ^auth/logout/?$ auth/logout.php [L,QSA]
+
+# Portfolio rules
+RewriteRule ^portfolio/?$ portfolio/index.php [L,QSA]
+RewriteRule ^portfolio/([^/]+)/?$ portfolio/project.php?slug=$1 [L,QSA]
+
+# Services rules
+RewriteRule ^services/?$ services/index.php [L,QSA]
+RewriteRule ^services/([^/]+)/?$ services/service.php?slug=$1 [L,QSA]
+
+# Admin rules
+RewriteRule ^admin/?$ admin/index.php [L,QSA]
+RewriteRule ^admin/([^/]+)/?$ admin/$1.php [L,QSA]
+RewriteRule ^admin/([^/]+)/([^/]+)/?$ admin/$1/$2.php [L,QSA]
+
+# API rules
+RewriteRule ^api/([^/]+)/?$ api/$1.php [L,QSA]
+RewriteRule ^api/([^/]+)/([^/]+)/?$ api/$1/$2.php [L,QSA]
+
+# Vantara rules
+RewriteRule ^vantara/?$ vantara/index.php [L,QSA]
+RewriteRule ^vantara/([^/]+)/?$ vantara/$1.php [L,QSA]
+
+# Static pages
+RewriteRule ^about/?$ pages/about.php [L,QSA]
+RewriteRule ^contact/?$ pages/contact.php [L,QSA]
+RewriteRule ^privacy/?$ pages/privacy.php [L,QSA]
+RewriteRule ^terms/?$ pages/terms.php [L,QSA]
+
+# Profile rules
+RewriteRule ^profile/?$ profile/index.php [L,QSA]
+RewriteRule ^profile/([^/]+)/?$ profile/$1.php [L,QSA]
+
+# Remove trailing slashes (but check files don't exist first)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.+)/$ /$1 [R=301,L]
 
 # Cache static assets
 <IfModule mod_expires.c>
@@ -109,19 +119,19 @@ RewriteRule ^(.+)/$ /$1 [R=301,L]
     ExpiresByType text/html "access plus 1 hour"
 </IfModule>
 
-# Gzip compression (if mod_deflate enabled)
+# Gzip compression
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/xml application/rss+xml font/woff font/woff2 image/svg+xml image/x-icon
 </IfModule>
 
-# Error documents (make sure these exist or comment out)
+# Error documents
 ErrorDocument 400 /errors/400.php
 ErrorDocument 401 /errors/401.php
 ErrorDocument 403 /errors/403.php
 ErrorDocument 404 /errors/404.php
 ErrorDocument 500 /errors/500.php
 
-# PHP settings (if mod_php enabled)
+# PHP settings
 <IfModule mod_php.c>
     php_flag expose_php off
     php_flag register_globals off
@@ -129,7 +139,6 @@ ErrorDocument 500 /errors/500.php
 
     php_value upload_max_filesize 10M
     php_value post_max_size 12M
-
     php_value memory_limit 256M
     php_value max_execution_time 30
 
@@ -138,7 +147,7 @@ ErrorDocument 500 /errors/500.php
     php_value session.use_strict_mode 1
 </IfModule>
 
-# Basic protection against common attack vectors in query strings
+# Security protection
 <IfModule mod_rewrite.c>
     RewriteCond %{QUERY_STRING} (<|%3C)([^s]*s)+cript.*(>|%3E) [NC,OR]
     RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
