@@ -6,95 +6,118 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';
 
-// If user is already logged in, redirect to dashboard
+function is_authenticated() {
+    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+}
+
+function redirect($url) {
+    header("Location: $url");
+    exit;
+}
+
 if (is_authenticated()) {
     redirect('/dashboard');
 }
 
-// Store the intended redirect URL
 if (isset($_GET['redirect'])) {
     $_SESSION['auth_redirect'] = $_GET['redirect'];
 }
 
 $page_title = "Login - BluFox Studio";
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo escape_html($page_title); ?></title>
-    <link rel="stylesheet" href="/assets/css/global.css">
-    <link rel="stylesheet" href="/assets/css/components.css">
+    <?php include __DIR__ . '/../includes/components/head.php'; ?>
 </head>
 <body>
+    <?php include __DIR__ . '/../includes/components/header.php'; ?>
     <div class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
-                <img src="/assets/images/logo/BluFox_Studio_Logo.svg" alt="BluFox Studio" class="auth-logo">
                 <h1>Welcome Back</h1>
-                <p>Sign in with your Roblox account to continue</p>
+                <p>Sign in to your BluFox Studio account</p>
             </div>
             
+            <!-- Error Messages -->
             <?php if (isset($_GET['error'])): ?>
                 <div class="alert alert-error">
-                    <?php 
-                    switch($_GET['error']) {
+                    <?php
+                    switch ($_GET['error']) {
                         case 'access_denied':
-                            echo 'You cancelled the authorization process.';
-                            break;
-                        case 'invalid_request':
-                            echo 'Invalid request. Please try again.';
+                            echo 'Login was cancelled. Please try again.';
                             break;
                         case 'authentication_failed':
                             echo 'Authentication failed. Please try again.';
                             break;
                         case 'missing_credentials':
-                            echo 'Roblox OAuth is not properly configured.';
+                            echo 'OAuth configuration is incomplete. Please contact support.';
+                            break;
+                        case 'session_expired':
+                            echo 'Your session has expired. Please log in again.';
                             break;
                         default:
-                            echo 'An error occurred during login: ' . escape_html($_GET['error']);
+                            echo 'An error occurred during login: ' . htmlspecialchars($_GET['error']);
                     }
                     ?>
                 </div>
             <?php endif; ?>
             
             <?php if (isset($_GET['logged_out'])): ?>
-                <div class="alert" style="background: #f0fff4; border-color: #9ae6b4; color: #2f855a;">
+                <div class="alert alert-success">
                     You have been successfully logged out.
                 </div>
             <?php endif; ?>
             
-            <div class="auth-buttons">
-                <?php 
-                try {
-                    $auth = new RobloxAuth();
-                    $auth_url = $auth->getAuthorizationUrl();
-                ?>
-                    <a href="<?php echo escape_html($auth_url); ?>" class="btn-roblox">
-                        <img src="/assets/images/icons/roblox_icon.png" alt="" srcset="" class="icon roblox-login-icon">
-                        Continue with Roblox
-                    </a>
-                <?php 
-                } catch (Exception $e) {
-                    if (DEBUG_MODE) {
-                        echo '<div class="alert alert-error">OAuth Configuration Error: ' . escape_html($e->getMessage()) . '</div>';
-                    } else {
-                        echo '<div class="alert alert-error">Login is temporarily unavailable. Please try again later.</div>';
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form" action="/auth/login" method="POST">
+                <div class="auth-options">
+                    <div class="remember-me-container">
+                        <div class="remember-me-checkbox">
+                            <input type="checkbox" id="remember_me" name="remember_me" value="1">
+                            <label for="remember_me">Keep me signed in</label>
+                        </div>
+                        <div class="security-note">
+                            Only check this on your personal device. You'll stay logged in for 30 days.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="auth-buttons">
+                    <?php 
+                    try {
+                        require_once __DIR__ . '/../includes/auth.php';
+                        $auth = new RobloxAuth();
+                        $auth_url = $auth->getAuthorizationUrl();
+                    ?>
+                        <button type="submit" class="btn-roblox" id="robloxLoginBtn">
+                            <img src="/assets/images/icons/roblox_icon.png" alt="" class="roblox-login-icon">
+                            <span class="btn-text">Continue with Roblox</span>
+                            <div class="loading-spinner"></div>
+                        </button>
+                        <input type="hidden" name="auth_url" value="<?php echo htmlspecialchars($auth_url); ?>">
+                    <?php 
+                    } catch (Exception $e) {
+                        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+                            echo '<div class="alert alert-error">OAuth Configuration Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                        } else {
+                            echo '<div class="alert alert-error">Login is temporarily unavailable. Please try again later.</div>';
+                        }
+                        
+                        echo '<button type="button" class="btn-roblox" style="opacity: 0.5; cursor: not-allowed;" disabled>Continue with Roblox (Unavailable)</button>';
                     }
-                    
-                    echo '<a href="/?error=missing_credentials" class="btn-roblox" style="opacity: 0.5; cursor: not-allowed;">Continue with Roblox (Unavailable)</a>';
-                }
-                ?>
-            </div>
+                    ?>
+                </div>
+            </form>
             
-            <?php if (DEBUG_MODE): ?>
-                <div class="debug-info">
+            <?php if (defined('DEBUG_MODE') && DEBUG_MODE): ?>
+                <div class="debug-info" style="margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; font-size: 12px;">
                     <strong>Debug Information:</strong><br>
                     Client ID: <?php echo !empty(ROBLOX_CLIENT_ID) ? 'Configured ✓' : 'Missing ✗'; ?><br>
                     Client Secret: <?php echo !empty(ROBLOX_CLIENT_SECRET) ? 'Configured ✓' : 'Missing ✗'; ?><br>
-                    Redirect URI: <?php echo escape_html(ROBLOX_REDIRECT_URI); ?><br>
-                    Site URL: <?php echo escape_html(SITE_URL); ?>
+                    Redirect URI: <?php echo htmlspecialchars(ROBLOX_REDIRECT_URI); ?><br>
+                    Site URL: <?php echo htmlspecialchars(SITE_URL); ?>
                 </div>
             <?php endif; ?>
             
