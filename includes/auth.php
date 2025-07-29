@@ -1,4 +1,8 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database.php';
 
@@ -22,9 +26,16 @@ class RobloxAuth {
     }
 
     public function getAuthorizationUrl($state = null) {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
         $state = $state ?: bin2hex(random_bytes(16));
+
         $_SESSION['oauth_state'] = $state;
         $_SESSION['oauth_nonce'] = bin2hex(random_bytes(16));
+
+        session_write_close();
 
         $params = [
             'response_type' => 'code',
@@ -39,8 +50,11 @@ class RobloxAuth {
     }
 
     public function getAccessToken($code, $state) {
+        error_log(">>> OAuth callback state received: " . $state);
+        error_log(">>> OAuth session state expected: " . ($_SESSION['oauth_state'] ?? 'null'));
+
         if (!isset($_SESSION['oauth_state']) || $state !== $_SESSION['oauth_state']) {
-            throw new Exception('Invalid state parameter');
+            throw new Exception("Invalid state parameter - possible CSRF attack.\nExpected: " . ($_SESSION['oauth_state'] ?? 'null') . "\nGot: " . $state);
         }
 
         unset($_SESSION['oauth_state']);

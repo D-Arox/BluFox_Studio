@@ -1,7 +1,7 @@
 <?php
-/**
- * auth/login.php - Login page with Roblox OAuth
- */
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -25,95 +25,7 @@ $page_title = "Login - BluFox Studio";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo escape_html($page_title); ?></title>
     <link rel="stylesheet" href="/assets/css/global.css">
-    <link rel="stylesheet" href="/assets/css/auth.css">
-    <style>
-        .auth-container {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-        }
-        .auth-card {
-            background: white;
-            border-radius: 15px;
-            padding: 40px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            max-width: 400px;
-            width: 100%;
-            text-align: center;
-        }
-        .auth-logo {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 20px;
-        }
-        .auth-header h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .auth-header p {
-            color: #666;
-            margin-bottom: 30px;
-        }
-        .btn-roblox {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            background: linear-gradient(135deg, #00A2FF 0%, #0066CC 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            padding: 15px 30px;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            width: 100%;
-            box-shadow: 0 4px 16px rgba(0, 162, 255, 0.3);
-        }
-        .btn-roblox:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 32px rgba(0, 162, 255, 0.5);
-            color: white;
-        }
-        .btn-roblox svg {
-            width: 24px;
-            height: 24px;
-        }
-        .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .alert-error {
-            background: #fff5f5;
-            border: 1px solid #fed7d7;
-            color: #c53030;
-        }
-        .auth-footer {
-            margin-top: 30px;
-            font-size: 14px;
-        }
-        .auth-footer a {
-            color: #667eea;
-            text-decoration: none;
-        }
-        .auth-footer a:hover {
-            text-decoration: underline;
-        }
-        .debug-info {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
-            text-align: left;
-            font-size: 12px;
-            color: #4a5568;
-        }
-    </style>
+    <link rel="stylesheet" href="/assets/css/components.css">
 </head>
 <body>
     <div class="auth-container">
@@ -160,9 +72,7 @@ $page_title = "Login - BluFox Studio";
                     $auth_url = $auth->getAuthorizationUrl();
                 ?>
                     <a href="<?php echo escape_html($auth_url); ?>" class="btn-roblox">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2L2 7V17L12 22L22 17V7L12 2Z"/>
-                        </svg>
+                        <img src="/assets/images/icons/roblox_icon.png" alt="" srcset="" class="icon roblox-login-icon">
                         Continue with Roblox
                     </a>
                 <?php 

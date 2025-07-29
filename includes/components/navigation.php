@@ -1,3 +1,8 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+?>
 <div class="bg-animation"></div>
 <div class="matrix-grid"></div>
 <div class="particles" id="particles"></div>

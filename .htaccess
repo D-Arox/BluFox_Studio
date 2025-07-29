@@ -19,8 +19,8 @@ RewriteEngine On
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     
     # Content Security Policy (adjust as needed)
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://apis.roblox.com https://authorize.roblox.com"
-    
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://apis.roblox.com https://authorize.roblox.com https://*.roblox.com; frame-src https://*.roblox.com; form-action https://*.roblox.com"
+
     # Remove server signature
     Header unset Server
     Header unset X-Powered-By

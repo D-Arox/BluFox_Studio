@@ -1,5 +1,7 @@
 <?php
-
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 include_once __DIR__ . '/includes/config.php';
 
 $page_title = "BluFox Studio - Professional Roblox Developement";
