@@ -6,21 +6,154 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';
 
-if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
-    if (isset($_GET['token']) && verify_csrf_token($_GET['token'])) {
-        
-    } else {
-        redirect('/', 403);
-    }
+if (!is_authenticated()) {
+    redirect('/?logged_out=1');
 }
 
-try {
-    logout();
-    redirect('/?logged_out=1');
-} catch (Exception $e) {
-    if (DEBUG_MODE) {
-        error_log("Logout Error: " . $e->getMessage());
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        redirect('/', 403);
     }
-    redirect('/');
+    
+    try {
+        logout();
+        redirect('/?logged_out=1');
+    } catch (Exception $e) {
+        if (DEBUG_MODE) {
+            error_log("Logout Error: " . $e->getMessage());
+        }
+        redirect('/');
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $csrf_token = generate_csrf_token();
+    $page_title = "Logout - BluFox Studio";
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title><?php echo escape_html($page_title); ?></title>
+        <link rel="stylesheet" href="/assets/css/global.css">
+        <link rel="stylesheet" href="/assets/css/components.css">
+        <style>
+            .logout-container {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: var(--bg-primary);
+                padding: var(--space-4);
+            }
+            .logout-card {
+                background: var(--bg-secondary);
+                border: 1px solid var(--border-primary);
+                border-radius: var(--radius-2xl);
+                padding: var(--space-8);
+                max-width: 400px;
+                width: 100%;
+                text-align: center;
+                box-shadow: var(--shadow-xl);
+            }
+            .logout-icon {
+                width: 64px;
+                height: 64px;
+                margin: 0 auto var(--space-6);
+                color: var(--text-warning);
+            }
+            .logout-title {
+                font-size: var(--font-size-2xl);
+                font-weight: 700;
+                margin-bottom: var(--space-4);
+                color: var(--text-primary);
+            }
+            .logout-message {
+                color: var(--text-secondary);
+                margin-bottom: var(--space-8);
+                line-height: 1.6;
+            }
+            .logout-actions {
+                display: flex;
+                gap: var(--space-4);
+                flex-direction: column;
+            }
+            .btn {
+                padding: var(--space-3) var(--space-6);
+                border-radius: var(--radius-lg);
+                font-weight: 600;
+                text-decoration: none;
+                border: none;
+                cursor: pointer;
+                transition: all var(--transition-fast);
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .btn-danger {
+                background: var(--color-red-600);
+                color: white;
+            }
+            .btn-danger:hover {
+                background: var(--color-red-700);
+            }
+            .btn-secondary {
+                background: var(--bg-tertiary);
+                color: var(--text-secondary);
+                border: 1px solid var(--border-primary);
+            }
+            .btn-secondary:hover {
+                background: var(--bg-quaternary);
+                color: var(--text-primary);
+            }
+            @media (min-width: 480px) {
+                .logout-actions {
+                    flex-direction: row;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logout-container">
+            <div class="logout-card">
+                <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <path d="M21 12H9" />
+                </svg>
+                
+                <h1 class="logout-title">Confirm Logout</h1>
+                <p class="logout-message">
+                    Are you sure you want to sign out of your BluFox Studio account?
+                </p>
+                
+                <div class="logout-actions">
+                    <form method="POST" style="flex: 1;">
+                        <input type="hidden" name="csrf_token" value="<?php echo escape_html($csrf_token); ?>">
+                        <button type="submit" class="btn btn-danger" style="width: 100%;">
+                            Yes, Sign Out
+                        </button>
+                    </form>
+                    <a href="/dashboard" class="btn btn-secondary" style="flex: 1;">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            let autoLogoutTimer = setTimeout(() => {
+                if (confirm('Auto-logout in 3 seconds. Continue?')) {
+                    document.querySelector('form').submit();
+                }
+            }, 10000); 
+            
+            document.addEventListener('click', () => {
+                clearTimeout(autoLogoutTimer);
+            });
+        </script>
+    </body>
+    </html>
+    <?php
+} else {
+    redirect('/', 405);
 }
-?>

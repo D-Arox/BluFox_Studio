@@ -16,3 +16,7 @@
 <link rel="stylesheet" href="/assets/css/header.css">
 
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/nav.js"></script>
+<script src="/assets/js/theme-toggle.js"></script>
