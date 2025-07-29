@@ -30,7 +30,7 @@ $current_page = 'dashboard';
 <body>
     <?php include __DIR__ . '/../includes/components/header.php'; ?>
     
-    <main class="dashboard-main">
+    <!-- <main class="dashboard-main">
         <div class="container">
             <div class="dashboard-header">
                 <h1>Welcome back, <?php echo escape_html($_SESSION['username'] ?? 'User'); ?>!</h1>
@@ -100,6 +100,6 @@ $current_page = 'dashboard';
         </div>
     </main>
     
-    <script src="/assets/js/dashboard.js"></script>
+    <script src="/assets/js/dashboard.js"></script> -->
 </body>
 </html>

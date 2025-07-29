@@ -1,5 +1,4 @@
-# BluFox Studio - Fixed Apache Configuration with Proper Auth Routing
-
+# BluFox Studio - Fixed Apache Configuration
 RewriteEngine On
 
 # Security Headers
@@ -29,7 +28,7 @@ RewriteEngine On
 </FilesMatch>
 
 # Deny access to sensitive directories (but explicitly allow dashboard, auth, admin)
-<DirectoryMatch "^(?!.*(dashboard|admin|auth|assets|includes))(database|logs|cache|vendor|node_modules)">
+<DirectoryMatch "^(?!.*(dashboard|admin|auth|assets|includes|errors|pages|portfolio|profile|services|vantara))(database|logs|cache|vendor|node_modules)">
     Require all denied
 </DirectoryMatch>
 
@@ -55,14 +54,22 @@ RewriteRule ^ - [L]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# PRIORITY 3: Authentication routes (HIGHEST PRIORITY for URL rewriting)
+# PRIORITY 3: Error page routes (for testing) - BEFORE other routes to prevent conflicts
+RewriteRule ^error/400/?$ errors/400.php [L,QSA]
+RewriteRule ^error/401/?$ errors/401.php [L,QSA]
+RewriteRule ^error/402/?$ errors/402.php [L,QSA]
+RewriteRule ^error/403/?$ errors/403.php [L,QSA]
+RewriteRule ^error/404/?$ errors/404.php [L,QSA]
+RewriteRule ^error/500/?$ errors/500.php [L,QSA]
+
+# PRIORITY 4: Authentication routes (HIGHEST PRIORITY for URL rewriting)
 RewriteRule ^auth/login/?$ auth/login.php [L,QSA]
 RewriteRule ^auth/callback/?$ auth/callback.php [L,QSA]
 RewriteRule ^auth/logout/?$ auth/logout.php [L,QSA]
 RewriteRule ^auth/set-remember-preference/?$ auth/set-remember-preference.php [L,QSA]
 RewriteRule ^auth/set-remember-session/?$ auth/set-remember-session.php [L,QSA]
 
-# PRIORITY 4: Dashboard routes
+# PRIORITY 5: Dashboard routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^dashboard/?$ dashboard/index.php [L,QSA]
@@ -71,7 +78,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^dashboard/([^/]+)/?$ dashboard/$1.php [L,QSA]
 
-# PRIORITY 5: Admin routes
+# PRIORITY 6: Admin routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^admin/?$ admin/index.php [L,QSA]
@@ -84,7 +91,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^admin/([^/]+)/([^/]+)/?$ admin/$1/$2.php [L,QSA]
 
-# PRIORITY 6: API routes
+# PRIORITY 7: API routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/([^/]+)/?$ api/$1.php [L,QSA]
@@ -93,7 +100,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/([^/]+)/([^/]+)/?$ api/$1/$2.php [L,QSA]
 
-# PRIORITY 7: Portfolio routes
+# PRIORITY 8: Portfolio routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^portfolio/?$ portfolio/index.php [L,QSA]
@@ -102,7 +109,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^portfolio/([^/]+)/?$ portfolio/project.php?slug=$1 [L,QSA]
 
-# PRIORITY 8: Services routes
+# PRIORITY 9: Services routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^services/?$ services/index.php [L,QSA]
@@ -111,7 +118,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^services/([^/]+)/?$ services/service.php?slug=$1 [L,QSA]
 
-# PRIORITY 9: Vantara routes
+# PRIORITY 10: Vantara routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^vantara/?$ vantara/index.php [L,QSA]
@@ -120,7 +127,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^vantara/([^/]+)/?$ vantara/$1.php [L,QSA]
 
-# PRIORITY 10: Static pages
+# PRIORITY 11: Static pages
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^about/?$ pages/about.php [L,QSA]
@@ -137,7 +144,11 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^terms/?$ pages/terms.php [L,QSA]
 
-# PRIORITY 11: Profile routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^pricing/?$ pages/pricing.php [L,QSA]
+
+# PRIORITY 12: Profile routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^profile/?$ profile/index.php [L,QSA]
@@ -146,7 +157,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^profile/([^/]+)/?$ profile/$1.php [L,QSA]
 
-# PRIORITY 12: Remove trailing slashes (LAST PRIORITY)
+# PRIORITY 13: Remove trailing slashes (LAST PRIORITY)
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.+)/$ /$1 [R=301,L]
@@ -178,9 +189,10 @@ RewriteRule ^(.+)/$ /$1 [R=301,L]
     AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/xml application/rss+xml font/woff font/woff2 image/svg+xml image/x-icon
 </IfModule>
 
-# Error documents
+# Error documents - All error pages with proper path
 ErrorDocument 400 /errors/400.php
 ErrorDocument 401 /errors/401.php
+ErrorDocument 402 /errors/402.php
 ErrorDocument 403 /errors/403.php
 ErrorDocument 404 /errors/404.php
 ErrorDocument 500 /errors/500.php
