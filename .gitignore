@@ -1,5 +1,4 @@
 .env
-.htaccess
 composer.json
 package.json
 .vscode/pro-deployer.json

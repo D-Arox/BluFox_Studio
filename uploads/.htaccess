@@ -1,0 +1,3 @@
+# Deny direct access
+Order Deny,Allow
+Deny from all
