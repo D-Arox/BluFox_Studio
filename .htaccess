@@ -60,6 +60,7 @@ RewriteRule ^auth/login/?$ auth/login.php [L,QSA]
 RewriteRule ^auth/callback/?$ auth/callback.php [L,QSA]
 RewriteRule ^auth/logout/?$ auth/logout.php [L,QSA]
 RewriteRule ^auth/set-remember-preference/?$ auth/set-remember-preference.php [L,QSA]
+RewriteRule ^auth/set-remember-session/?$ auth/set-remember-session.php [L,QSA]
 
 # PRIORITY 4: Dashboard routes
 RewriteCond %{REQUEST_FILENAME} !-f

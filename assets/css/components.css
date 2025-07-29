@@ -1,14 +1,12 @@
 /*  =====================
     =====   LOGIN   =====
     ===================== */
-
 .auth-container {
     flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 20px;
-    margin-top: 25vh;
 }
 
 .auth-card {
@@ -16,6 +14,7 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 20px;
+    margin-top: 25vh;
     padding: 40px;
     max-width: 400px;
     width: 100%;
@@ -78,6 +77,16 @@
     text-decoration: none;
 }
 
+.security-note {
+    font-size: var(--font-size-xs);
+    text-align: center;
+    padding: var(--space-2);
+    margin-bottom: var(--space-10);
+    border-radius: var(--radius-lg);
+    background: rgba(219, 37, 37, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .remember-me-checkbox {
     display: flex;
     align-items: center;
@@ -105,4 +114,78 @@
     padding: 15px;
     margin: 20px 0;
     font-size: 12px;
+}
+
+/*  =====================
+    =====   LOGOUT   =====
+    ===================== */
+.logout-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary);
+    padding: var(--space-4);
+}
+
+.logout-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-8);
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: var(--shadow-xl);
+}
+
+.logout-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--space-6);
+    color: var(--text-warning);
+}
+
+.logout-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    margin-bottom: var(--space-4);
+    color: var(--text-primary);
+}
+
+.logout-message {
+    color: var(--text-secondary);
+    margin-bottom: var(--space-8);
+    line-height: 1.6;
+}
+
+.logout-actions {
+    display: flex;
+    gap: var(--space-4);
+    flex-direction: column;
+}
+
+.btn-danger {
+    background: var(--color-red-600);
+    color: white;
+}
+.btn-danger:hover {
+    background: var(--color-red-700);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-quaternary);
+    color: var(--text-primary);
+}
+
+@media (min-width: 480px) {
+    .logout-actions {
+        flex-direction: row;
+    }
 }

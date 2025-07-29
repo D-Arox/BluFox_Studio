@@ -31,10 +31,7 @@ $current_page = 'login';
 <html lang="en">
 <head>
     <?php include __DIR__ . '/../includes/components/head.php'; ?>
-    
-    <!-- Fallback Auth Styles -->
-    <style>
-    </style>
+    <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
     <?php include __DIR__ . '/../includes/components/header.php'; ?>
@@ -77,34 +74,42 @@ $current_page = 'login';
             <?php endif; ?>
             
             <!-- Remember Me Option -->
-            <div class="remember-me-checkbox">
-                <input type="checkbox" id="remember_me" name="remember_me" value="1">
-                <label for="remember_me">Keep me signed in for 30 days</label>
+            <div class="remember-me-container">
+                <div class="remember-me-checkbox">
+                    <input type="checkbox" id="remember_me" name="remember_me" value="1">
+                    <label for="remember_me">Keep me signed in</label>
+                </div>
+                <div class="security-note card-glass">
+                    Only check this on your personal device. You'll stay logged in for 30 days.
+                </div>
             </div>
             
-            <!-- Login Button -->
-            <div class="auth-buttons">
-                <?php 
-                try {
-                    $auth = new RobloxAuth();
-                    $auth_url = $auth->getAuthorizationUrl();
-                ?>
-                    <a href="<?php echo htmlspecialchars($auth_url); ?>" class="btn-roblox" id="robloxLoginBtn">
-                        <img src="/assets/images/icons/roblox_icon.png" alt="Roblox" width="24" height="24" 
-                             onerror="this.style.display='none'">
-                        Continue with Roblox
-                    </a>
-                <?php 
-                } catch (Exception $e) {
-                    if (defined('DEBUG_MODE') && DEBUG_MODE) {
-                        echo '<div class="alert alert-error">OAuth Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
-                    } else {
-                        echo '<div class="alert alert-error">Login is temporarily unavailable.</div>';
+            <!-- Login Form (like your original) -->
+            <form id="loginForm" class="auth-form" action="#" method="POST">
+                <div class="auth-buttons">
+                    <?php 
+                    try {
+                        $auth = new RobloxAuth();
+                        $auth_url = $auth->getAuthorizationUrl();
+                    ?>
+                        <button type="submit" class="btn-roblox" id="robloxLoginBtn">
+                            <img src="/assets/images/icons/roblox_icon.png" alt="Roblox" width="24" height="24" 
+                                 onerror="this.style.display='none'">
+                            <span class="btn-text">Continue with Roblox</span>
+                        </button>
+                        <input type="hidden" name="auth_url" value="<?php echo htmlspecialchars($auth_url); ?>">
+                    <?php 
+                    } catch (Exception $e) {
+                        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+                            echo '<div class="alert alert-error">OAuth Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                        } else {
+                            echo '<div class="alert alert-error">Login is temporarily unavailable.</div>';
+                        }
+                        echo '<button type="button" class="btn-roblox" disabled>Login Unavailable</button>';
                     }
-                    echo '<button type="button" class="btn-roblox" disabled>Login Unavailable</button>';
-                }
-                ?>
-            </div>
+                    ?>
+                </div>
+            </form>
             
             <?php if (defined('DEBUG_MODE') && DEBUG_MODE): ?>
                 <div class="debug-info">
@@ -124,22 +129,66 @@ $current_page = 'login';
     </div>
 
     <script>
-        // Store remember me preference
-        document.getElementById('remember_me').addEventListener('change', function() {
-            if (this.checked) {
-                sessionStorage.setItem('remember_me', '1');
-                localStorage.setItem('remember_me_preference', '1');
-            } else {
-                sessionStorage.removeItem('remember_me');
-                localStorage.removeItem('remember_me_preference');
+        document.addEventListener('DOMContentLoaded', function() {
+            const rememberCheckbox = document.getElementById('remember_me');
+            const loginForm = document.getElementById('loginForm');
+            const loginBtn = document.getElementById('robloxLoginBtn');
+            
+            // Restore previous preference
+            if (localStorage.getItem('remember_me_preference') === '1') {
+                rememberCheckbox.checked = true;
             }
+            
+            // Save preference when checkbox changes
+            rememberCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    localStorage.setItem('remember_me_preference', '1');
+                } else {
+                    localStorage.removeItem('remember_me_preference');
+                }
+            });
+            
+            // Handle form submission (like your original code)
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const authUrlInput = document.querySelector('input[name="auth_url"]');
+                const authUrl = authUrlInput ? authUrlInput.value : null;
+                const rememberMe = rememberCheckbox.checked;
+                
+                if (!authUrl) {
+                    alert('Login is not available. Please check configuration.');
+                    return;
+                }
+                
+                // Add loading state
+                if (loginBtn) {
+                    loginBtn.classList.add('loading');
+                }
+                
+                // Store remember me preference in session via AJAX
+                if (rememberMe) {
+                    fetch('/auth/set-remember-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ remember_me: true })
+                    }).then(() => {
+                        // Then redirect to OAuth with remember parameter
+                        const separator = authUrl.includes('?') ? '&' : '?';
+                        window.location.href = authUrl + separator + 'remember_me=1';
+                    }).catch(() => {
+                        // Fallback: redirect with parameter anyway
+                        const separator = authUrl.includes('?') ? '&' : '?';
+                        window.location.href = authUrl + separator + 'remember_me=1';
+                    });
+                } else {
+                    // No remember me, just redirect
+                    window.location.href = authUrl;
+                }
+            });
         });
-
-        // Restore preference
-        if (localStorage.getItem('remember_me_preference') === '1') {
-            document.getElementById('remember_me').checked = true;
-            sessionStorage.setItem('remember_me', '1');
-        }
     </script>
 </body>
 </html>
