@@ -1,192 +1,50 @@
-.auth-container {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 20px;
-}
-
-.auth-card {
-    background: white;
-    border-radius: 15px;
-    padding: 40px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-    max-width: 400px;
-    width: 100%;
-    text-align: center;
-}
-
-.auth-logo {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 20px;
-}
-
-.auth-header h1 {
-    color: #333;
-    margin-bottom: 10px;
-}
-
-.auth-header p {
-    color: #666;
-    margin-bottom: 30px;
-}
-
-.btn-roblox {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    background: linear-gradient(135deg, #00A2FF 0%, #0066CC 100%);
-    color: white;
-    text-decoration: none;
-    border-radius: 8px;
-    padding: 15px 30px;
-    font-weight: 600;
-    font-size: 16px;
-    transition: all 0.3s ease;
-    width: 100%;
-    box-shadow: 0 4px 16px rgba(0, 162, 255, 0.3);
-}
-
-.btn-roblox:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 32px rgba(0, 162, 255, 0.5);
-    color: white;
-}
-
-.btn-roblox svg {
-    width: 24px;
-    height: 24px;
-}
-
-.alert {
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-}
-
-.alert-error {
-    background: #fff5f5;
-    border: 1px solid #fed7d7;
-    color: #c53030;
-}
-
-.auth-footer {
-    margin-top: 30px;
-    font-size: 14px;
-}
-
-.auth-footer a {
-    color: #667eea;
-    text-decoration: none;
-}
-
-.auth-footer a:hover {
-    text-decoration: underline;
-}
-
-.debug-info {
-    background: #f7fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 15px;
-    margin-top: 20px;
-    text-align: left;
-    font-size: 12px;
-    color: #4a5568;
-}
-
-.roblox-login-icon {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
-    filter: brightness(1.2);
-}
-
 /*  =====================
     =====   LOGIN   =====
     ===================== */
-.remember-me-container {
-    margin: 20px 0;
-    text-align: center;
-}
 
-.remember-me-checkbox {
+.auth-container {
+    flex: 1;
     display: flex;
-    align-items: center;
     justify-content: center;
-    gap: 10px;
-    margin: 15px 0;
-}
-
-.remember-me-checkbox input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: #00b4d8;
-    cursor: pointer;
-}
-
-.remember-me-checkbox label {
-    color: #e0e0e0;
-    font-size: 14px;
-    cursor: pointer;
-    user-select: none;
-}
-
-.remember-me-checkbox label:hover {
-    color: #00b4d8;
-}
-
-.auth-options {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
+    align-items: center;
     padding: 20px;
-    margin: 20px 0;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 25vh;
 }
 
-.security-note {
-    font-size: 12px;
-    color: #888;
+.auth-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.auth-header {
     text-align: center;
-    margin-top: 10px;
-    line-height: 1.4;
+    margin-bottom: 30px;
+}
+
+.auth-header h1 {
+    margin: 0 0 10px;
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #00b4d8 0%, #90e0ef 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.auth-header p {
+    margin: 0;
+    opacity: 0.8;
+    font-size: 14px;
 }
 
 .btn-roblox {
-    background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
-    color: white;
-    padding: 15px 30px;
-    border: none;
-    border-radius: 8px;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 16px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    width: 100%;
-    justify-content: center;
-    cursor: pointer;
-}
-
-.btn-roblox:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 180, 216, 0.3);
-}
-
-.btn-roblox:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.roblox-login-icon {
-    width: 24px;
-    height: 24px;
+   width: 100%;
 }
 
 .alert {
@@ -208,29 +66,43 @@
     color: #86efac;
 }
 
-.loading-spinner {
-    display: none;
-    width: 20px;
-    height: 20px;
-    border: 2px solid #ffffff;
-    border-top: 2px solid transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+.auth-footer {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.auth-footer a {
+    color: #00b4d8;
+    text-decoration: none;
 }
 
-.btn-roblox.loading {
-    pointer-events: none;
+.remember-me-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px 0;
 }
 
-.btn-roblox.loading .loading-spinner {
-    display: block;
+.remember-me-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #00b4d8;
 }
 
-.btn-roblox.loading .btn-text {
-    display: none;
+.remember-me-checkbox label {
+    color: #e0e0e0;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.debug-info {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 20px 0;
+    font-size: 12px;
 }
