@@ -202,62 +202,177 @@ function updateUserUI(user = null) {
     }
 }
 
-function loginWithRoblox() {
+async function loginWithRobloxPKCE() {
+    try {
+        const codeVerifier = generateCodeVerifier();
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
+        const state = generateRandomString(32);
+        
+        
+        sessionStorage.setItem('oauth_code_verifier', codeVerifier);
+        sessionStorage.setItem('oauth_state', state);
+        sessionStorage.setItem('login_redirect', window.location.pathname);
+        
+        const clientId = window.robloxClientId || window.BluFox?.config?.robloxClientId || '6692844983306448575';
+        const redirectUri = window.location.origin + '/auth/callback';
+        
+        const authParams = {
+            'client_id': clientId,
+            'code_challenge': codeChallenge,
+            'code_challenge_method': 'S256',
+            'redirect_uri': redirectUri,
+            'scope': 'openid profile',
+            'response_type': 'code',
+            'state': state
+        };
+        
+        console.log('📝 Authorization parameters:', authParams);
+        
+        const baseUrl = 'https://apis.roblox.com/oauth/v1/authorize';
+        const queryString = Object.entries(authParams)
+            .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+            .join('&');
+        
+        const authUrl = `${baseUrl}?${queryString}`;
+        const urlObj = new URL(authUrl);
+  
+        safeTrackEvent('pkce_login_attempt', {
+            method: 'roblox_pkce',
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            challenge_method: 'S256'
+        });
+        
+        const loginBtn = document.querySelector('.auth-btn, .login-btn, button[onclick*="loginWithRoblox"]');
+        let originalContent = null;
+        
+        if (loginBtn) {
+            originalContent = loginBtn.innerHTML;
+            loginBtn.style.opacity = '0.7';
+            loginBtn.style.pointerEvents = 'none';
+            loginBtn.innerHTML = '<span>🔐 Redirecting with PKCE...</span>';
+        }
+        
+        setTimeout(() => {
+            window.location.href = authUrl;
+        }, 1000);
+        
+        setTimeout(() => {
+            if (loginBtn && originalContent) {
+                loginBtn.style.opacity = '1';
+                loginBtn.style.pointerEvents = 'auto';
+                loginBtn.innerHTML = originalContent;
+            }
+        }, 15000);
+        
+    } catch (error) {
+        showFlashMessage('PKCE Login failed: ' + error.message, 'error');
+        
+        safeTrackEvent('pkce_login_error', {
+            method: 'roblox_pkce',
+            error: error.message
+        });
+    }
+}
+
+function loginWithRobloxLegacy() {    
     try {
         const state = generateRandomString(32);
         sessionStorage.setItem('oauth_state', state);
-        
         sessionStorage.setItem('login_redirect', window.location.pathname);
         
-        const clientId = document.querySelector('meta[name="roblox-client-id"]')?.content || 
-                        window.BluFox?.config?.robloxClientId;
+        const clientId = window.robloxClientId || window.BluFox?.config?.robloxClientId || '6692844983306448575';
+        const redirectUri = window.location.origin + '/auth/callback';
         
-        if (!clientId) {
-            console.error('Roblox Client ID not found');
-            showFlashMessage('Configuration error. Please contact support.', 'error');
-            return;
-        }
+        const authParams = {
+            'client_id': clientId,
+            'redirect_uri': redirectUri,
+            'scope': 'openid profile',
+            'response_type': 'code',
+            'state': state
+        };
         
-        const params = new URLSearchParams({
-            client_id: clientId,
-            redirect_uri: window.location.origin + '/auth/callback',
-            scope: 'openid profile',
-            response_type: 'code',
-            state: state
+        const baseUrl = 'https://apis.roblox.com/oauth/v1/authorize';
+        const queryString = Object.entries(authParams)
+            .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+            .join('&');
+        
+        const authUrl = `${baseUrl}?${queryString}`;
+        safeTrackEvent('legacy_login_attempt', {
+            method: 'roblox_legacy',
+            client_id: clientId
         });
         
-        const authUrl = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
-        
-        // Safe track event call
-        safeTrackEvent('login_attempt', { method: 'roblox' });
-        
-        const loginBtn = document.querySelector('.auth-btn, .login-btn');
-        if (loginBtn) {
-            loginBtn.style.opacity = '0.7';
-            loginBtn.style.pointerEvents = 'none';
-            const originalText = loginBtn.innerHTML;
-            loginBtn.innerHTML = '<span>Redirecting...</span>';
-            
-            setTimeout(() => {
-                if (loginBtn) {
-                    loginBtn.style.opacity = '1';
-                    loginBtn.style.pointerEvents = 'auto';
-                    loginBtn.innerHTML = originalText;
-                }
-            }, 5000);
-        }
-        
-        console.log('Redirecting to Roblox OAuth:', authUrl);
-        
         window.location.href = authUrl;
-        
     } catch (error) {
-        console.error('Login error:', error);
-        showFlashMessage('Login failed. Please try again.', 'error');
-        
-        safeTrackEvent('login_error', { method: 'roblox', error: error.message });
+        showFlashMessage('Legacy login failed: ' + error.message, 'error');
     }
 }
+
+function loginWithRoblox() {
+    loginWithRobloxPKCE();
+}
+
+function setupOAuthConfig() {
+    const metaTags = {
+        clientId: document.querySelector('meta[name="roblox-client-id"]')?.content,
+        redirectUri: document.querySelector('meta[name="roblox-redirect-uri"]')?.content,
+        siteUrl: document.querySelector('meta[name="site-url"]')?.content
+    };
+    
+    if (window.BluFox && window.BluFox.config) {
+        if (metaTags.clientId) {
+            window.BluFox.config.robloxClientId = metaTags.clientId;
+        }
+        if (metaTags.redirectUri) {
+            window.BluFox.config.robloxRedirectUri = metaTags.redirectUri;
+        }
+        
+    }
+    
+    window.robloxClientId = metaTags.clientId || window.BluFox?.config?.robloxClientId || '6692844983306448575';
+    window.robloxRedirectUri = metaTags.redirectUri || window.BluFox?.config?.robloxRedirectUri || (window.location.origin + '/auth/callback');
+}
+
+function testBothOAuthMethods() {
+    console.log('🧪 Testing both OAuth methods...');
+    
+    const clientId = '6692844983306448575';
+    const redirectUri = window.location.origin + '/auth/callback';
+    const state = generateRandomString(32);
+    
+    console.log('\n🔐 PKCE OAuth URL:');
+    generateCodeChallenge(generateCodeVerifier()).then(challenge => {
+        const pkceUrl = `https://apis.roblox.com/oauth/v1/authorize?` +
+            `client_id=${encodeURIComponent(clientId)}&` +
+            `code_challenge=${encodeURIComponent(challenge)}&` +
+            `code_challenge_method=S256&` +
+            `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+            `scope=${encodeURIComponent('openid profile')}&` +
+            `response_type=code&` +
+            `state=${encodeURIComponent(state)}`;
+        
+        console.log(pkceUrl);
+        
+        console.log('\n🔄 Legacy OAuth URL:');
+        const legacyUrl = `https://apis.roblox.com/oauth/v1/authorize?` +
+            `client_id=${encodeURIComponent(clientId)}&` +
+            `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+            `scope=${encodeURIComponent('openid profile')}&` +
+            `response_type=code&` +
+            `state=${encodeURIComponent(state)}`;
+        
+        console.log(legacyUrl);
+        
+        // Make them available for manual testing
+        window.testPKCEUrl = () => window.location.href = pkceUrl;
+        window.testLegacyUrl = () => window.location.href = legacyUrl;
+        
+        console.log('\n🚀 Run testPKCEUrl() to test PKCE method');
+        console.log('🚀 Run testLegacyUrl() to test legacy method');
+    });
+}
+
 
 function logout() {
     try {
@@ -568,6 +683,51 @@ function debounce(func, wait) {
     };
 }
 
+function generateCodeVerifier() {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    let result = '';
+    const length = 128;
+    
+    if (window.crypto && window.crypto.getRandomValues) {
+        const array = new Uint8Array(length);
+        window.crypto.getRandomValues(array);
+        for (let i = 0; i < length; i++) {
+            result += charset[array[i] % charset.length];
+        }
+    } else {
+        for (let i = 0; i < length; i++) {
+            result += charset.charAt(Math.floor(Math.random() * charset.length));
+        }
+    }
+    
+    return result;
+}
+
+async function generateCodeChallenge(codeVerifier) {
+    if (!window.crypto || !window.crypto.subtle) {
+        throw new Error('Web Crypto API not supported - PKCE requires modern browser');
+    }
+    
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await window.crypto.subtle.digest('SHA-256', data);
+    
+    return base64URLEncode(digest);
+}
+
+function base64URLEncode(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    
+    return btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
 function generateRandomString(length) {
     const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
     let result = '';
@@ -738,6 +898,12 @@ window.generateRandomString = generateRandomString;
 window.checkAuthStatus = checkAuthStatus;
 window.updateUserUI = updateUserUI;
 window.safeTrackEvent = safeTrackEvent;
+window.setupOAuthConfig = setupOAuthConfig;
+window.loginWithRobloxPKCE = loginWithRobloxPKCE;
+window.loginWithRobloxLegacy = loginWithRobloxLegacy;
+window.testBothOAuthMethods = testBothOAuthMethods;
+window.generateCodeVerifier = generateCodeVerifier;
+window.generateCodeChallenge = generateCodeChallenge;
 
 window.BluFox.utils = {
     escapeHtml,
@@ -760,3 +926,27 @@ if (!window.BluFox.analytics.track) {
 if (!window.BluFox.analytics.send) {
     window.BluFox.analytics.send = sendAnalytics;
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    setupOAuthConfig();
+    
+    // Test configuration in development
+    if (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')) {
+        testOAuthConfig();
+    }
+});
+
+function debugLoginWithRoblox() {
+    console.log('🔬 DEBUG MODE: Enhanced OAuth login debugging');
+    
+    // Run configuration test first
+    if (!testOAuthConfig()) {
+        showFlashMessage('OAuth configuration test failed. Check console for details.', 'error');
+        return;
+    }
+    
+    // Proceed with normal login
+    loginWithRoblox();
+}
+
+window.debugLoginWithRoblox = debugLoginWithRoblox;

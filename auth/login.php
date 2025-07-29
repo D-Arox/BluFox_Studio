@@ -100,31 +100,113 @@ $redirectTo = $_GET['redirect'] ?? '/';
             </div>
         </div>
     </div>
+    
     <script src="/assets/js/main.js"></script>
     <script>
-        if ('<?php echo escape($_GET['redirect'] ?? ''); ?>') {
-            sessionStorage.setItem('login_redirect', '<?php echo escape($_GET['redirect'] ?? ''); ?>');
-        }
-
+        // Store redirect URL if provided
+        <?php if (!empty($_GET['redirect'])): ?>
+        sessionStorage.setItem('login_redirect', '<?php echo escape($_GET['redirect']); ?>');
+        <?php endif; ?>
+        
+        // Debug: Check PHP constants
+        console.log('🔧 PHP OAuth Config:');
+        console.log('   ROBLOX_CLIENT_ID:', '<?php echo ROBLOX_CLIENT_ID; ?>');
+        console.log('   ROBLOX_REDIRECT_URI:', '<?php echo ROBLOX_REDIRECT_URI; ?>');
+        console.log('   SITE_URL:', '<?php echo SITE_URL; ?>');
+        
         function loginWithRoblox() {
-            const state = generateRandomString(32);
-            sessionStorage.setItem('oauth_state', state);
-
-            const params = new URLSearchParams({
-                client_id: '<?php echo ROBLOX_CLIENT_ID; ?>',
-                redirect_uri: '<?php echo SITE_URL; ?>/auth/callback',
-                scope: 'openid profile',
-                response_type: 'code',
-                state: state
-            });
-
-            const authUrl = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
-
-            if (typeof trackEvent === 'function') {
-                trackEvent('login_attempt', { method: 'roblox' });
+            console.log('🚀 Login button clicked on auth page');
+            
+            try {
+                const state = generateRandomString(32);
+                sessionStorage.setItem('oauth_state', state);
+                
+                // Get client ID - use hardcoded fallback if PHP constant is empty
+                const clientId = '<?php echo ROBLOX_CLIENT_ID; ?>' || '6692844983306448575';
+                const redirectUri = '<?php echo ROBLOX_REDIRECT_URI; ?>' || '<?php echo SITE_URL; ?>/auth/callback';
+                
+                console.log('🔧 Using client ID:', clientId);
+                console.log('🔧 Using redirect URI:', redirectUri);
+                
+                if (!clientId || clientId.trim() === '') {
+                    throw new Error('Client ID is missing - check your .env file');
+                }
+                
+                const params = new URLSearchParams({
+                    client_id: clientId,
+                    redirect_uri: redirectUri,
+                    scope: 'openid profile',
+                    response_type: 'code',
+                    state: state
+                });
+                
+                const authUrl = `https://apis.roblox.com/oauth/v1/authorize?${params.toString()}`;
+                
+                console.log('🔗 Generated OAuth URL:', authUrl);
+                
+                // Verify URL contains client_id
+                if (!authUrl.includes('client_id=')) {
+                    throw new Error('Generated URL missing client_id parameter');
+                }
+                
+                // Track the attempt
+                if (typeof trackEvent === 'function') {
+                    trackEvent('login_attempt', { method: 'roblox', client_id: clientId });
+                }
+                
+                // Update button state
+                const button = document.getElementById('roblox-login');
+                if (button) {
+                    button.style.opacity = '0.7';
+                    button.style.pointerEvents = 'none';
+                    button.querySelector('.btn-title').textContent = 'Redirecting...';
+                }
+                
+                console.log('🚀 Redirecting to Roblox...');
+                window.location.href = authUrl;
+                
+            } catch (error) {
+                console.error('💥 Login error:', error);
+                alert('Login failed: ' + error.message);
+                
+                // Restore button
+                const button = document.getElementById('roblox-login');
+                if (button) {
+                    button.style.opacity = '1';
+                    button.style.pointerEvents = 'auto';
+                    button.querySelector('.btn-title').textContent = 'Continue with Roblox';
+                }
             }
-
-            window.location.href = authUrl;
+        }
+        
+        // Fallback random string generator if main.js hasn't loaded yet
+        function generateRandomString(length) {
+            const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+            let result = '';
+            
+            if (window.crypto && window.crypto.getRandomValues) {
+                const array = new Uint8Array(length);
+                window.crypto.getRandomValues(array);
+                for (let i = 0; i < length; i++) {
+                    result += charset[array[i] % charset.length];
+                }
+            } else {
+                for (let i = 0; i < length; i++) {
+                    result += charset.charAt(Math.floor(Math.random() * charset.length));
+                }
+            }
+            
+            return result;
+        }
+        
+        // Test the OAuth configuration on page load
+        console.log('🧪 Testing OAuth configuration...');
+        const testClientId = '<?php echo ROBLOX_CLIENT_ID; ?>' || '6692844983306448575';
+        if (testClientId && testClientId !== '') {
+            console.log('✅ Client ID is available:', testClientId);
+        } else {
+            console.error('❌ Client ID is missing! Check your .env file.');
+            console.log('💡 Make sure your .env file contains: ROBLOX_CLIENT_ID=6692844983306448575');
         }
     </script>
 </body>

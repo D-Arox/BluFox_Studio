@@ -29,7 +29,6 @@ $flashMessage = getFlashMessage();
     <meta name="roblox-client-id" content="<?php echo ROBLOX_CLIENT_ID; ?>">
     <meta name="roblox-redirect-uri" content="<?php echo ROBLOX_REDIRECT_URI; ?>">
     <meta name="site-url" content="<?php echo SITE_URL; ?>">
-
     <meta name="csrf-token" content="<?php echo generateCSRFToken(); ?>">
 
     <link rel="icon" type="image/x-icon" href="/assets/images/logo/BluFox_Studio_Logo.svg">
@@ -66,11 +65,13 @@ $flashMessage = getFlashMessage();
     }
     </script>
     <script>
+        // OAuth Configuration - Make available globally
         window.csrfToken = '<?php echo generateCSRFToken(); ?>';
         window.siteUrl = '<?php echo SITE_URL; ?>';
         window.robloxClientId = '<?php echo ROBLOX_CLIENT_ID; ?>';
         window.robloxRedirectUri = '<?php echo ROBLOX_REDIRECT_URI; ?>';
         
+        // Enhanced BluFox configuration
         window.BluFox = window.BluFox || {};
         window.BluFox.config = {
             apiUrl: '<?php echo SITE_URL; ?>/api',
@@ -80,7 +81,14 @@ $flashMessage = getFlashMessage();
             siteUrl: '<?php echo SITE_URL; ?>'
         };
         
+        // Initialize analytics
+        window.BluFox.analytics = {
+            events: [],
+            pageStartTime: Date.now()
+        };
+        
         <?php if (Auth::check()): ?>
+        // Set current user data if logged in
         window.BluFox.user = <?php echo json_encode([
             'id' => $currentUser['id'],
             'username' => $currentUser['username'],
@@ -92,6 +100,14 @@ $flashMessage = getFlashMessage();
         <?php else: ?>
         window.BluFox.user = null;
         <?php endif; ?>
+        
+        // Debug OAuth configuration
+        console.log('🔧 OAuth Config Loaded:', {
+            clientId: window.robloxClientId,
+            redirectUri: window.robloxRedirectUri,
+            siteUrl: window.siteUrl,
+            hasUser: !!window.BluFox.user
+        });
     </script>
 </head>
 <body class="<?php echo $currentPage; ?>-page">
