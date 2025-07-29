@@ -17,32 +17,50 @@ class RobloxAuth {
         $this->client_secret = ROBLOX_CLIENT_SECRET;
         $this->redirect_uri = ROBLOX_REDIRECT_URI;
         
-        if (empty($this->client_id) || empty($this->client_secret)) {
-            throw new Exception("Roblox OAuth credentials not configured");
+        if (empty($this->client_id)) {
+            throw new Exception("Roblox Client ID not configured");
+        }
+        
+        if (empty($this->client_secret)) {
+            throw new Exception("Roblox Client Secret not configured");
+        }
+        
+        if (empty($this->redirect_uri)) {
+            throw new Exception("Roblox Redirect URI not configured");
         }
     }
     
     public function getAuthorizationUrl($state = null) {
         $state = $state ?: bin2hex(random_bytes(16));
         $_SESSION['oauth_state'] = $state;
+        $_SESSION['oauth_nonce'] = bin2hex(random_bytes(16));
         
+        echo $this->client_id;
+
         $params = [
             'client_id' => $this->client_id,
             'redirect_uri' => $this->redirect_uri,
             'scope' => 'openid profile',
             'response_type' => 'code',
-            'state' => $state
+            'state' => $state,
+            'nonce' => $_SESSION['oauth_nonce']
         ];
+        
+        if (DEBUG_MODE) {
+            error_log("OAuth Authorization URL generated with params: " . json_encode($params));
+        }
         
         return self::ROBLOX_AUTH_URL . '?' . http_build_query($params);
     }
     
     public function getAccessToken($code, $state) {
+        // Verify state parameter
         if (!isset($_SESSION['oauth_state']) || $state !== $_SESSION['oauth_state']) {
-            throw new Exception("Invalid state parameter");
+            throw new Exception("Invalid state parameter - possible CSRF attack");
         }
         
         unset($_SESSION['oauth_state']);
+        unset($_SESSION['oauth_nonce']);
         
         $data = [
             'client_id' => $this->client_id,
@@ -52,10 +70,24 @@ class RobloxAuth {
             'redirect_uri' => $this->redirect_uri
         ];
         
-        $response = $this->makeHttpRequest(self::ROBLOX_TOKEN_URL, 'POST', $data);
+        if (DEBUG_MODE) {
+            error_log("Requesting access token with data: " . json_encode(array_merge($data, ['client_secret' => '[HIDDEN]'])));
+        }
+        
+        $response = $this->makeHttpRequest(self::ROBLOX_TOKEN_URL, 'POST', $data, [
+            'Content-Type: application/x-www-form-urlencoded',
+            'Accept: application/json'
+        ]);
         
         if (!$response || !isset($response['access_token'])) {
-            throw new Exception("Failed to obtain access token");
+            if (DEBUG_MODE) {
+                error_log("Token exchange failed. Response: " . json_encode($response));
+            }
+            throw new Exception("Failed to obtain access token: " . ($response['error_description'] ?? 'Unknown error'));
+        }
+        
+        if (DEBUG_MODE) {
+            error_log("Access token obtained successfully");
         }
         
         return $response;
@@ -75,7 +107,7 @@ class RobloxAuth {
         
         return $response;
     }
-    
+
     public function createOrUpdateUser($userInfo, $tokenData) {
         $db = db();
         
@@ -196,7 +228,7 @@ class RobloxAuth {
         $curl = curl_init();
         
         $default_headers = [
-            'User-Agent: BluFoxStudio/1.0',
+            'User-Agent: BluFoxStudio/1.0 (https://blufox-studio.com)',
             'Accept: application/json'
         ];
         
@@ -206,15 +238,26 @@ class RobloxAuth {
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 30,
+            CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3
         ]);
         
         if ($method === 'POST') {
             curl_setopt($curl, CURLOPT_POST, true);
             if ($data) {
-                if (in_array('Content-Type: application/json', $headers)) {
+                $content_type_header = null;
+                foreach ($headers as $header) {
+                    if (stripos($header, 'content-type:') === 0) {
+                        $content_type_header = $header;
+                        break;
+                    }
+                }
+                
+                if ($content_type_header && stripos($content_type_header, 'application/json') !== false) {
                     curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
                 } else {
                     curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
@@ -226,23 +269,41 @@ class RobloxAuth {
         $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         $error = curl_error($curl);
         
+        if (DEBUG_MODE) {
+            error_log("HTTP Request: $method $url");
+            error_log("HTTP Response Code: $http_code");
+            if ($error) {
+                error_log("cURL Error: $error");
+            }
+        }
+    
         curl_close($curl);
         
         if ($error) {
             if (DEBUG_MODE) {
                 error_log("cURL Error: " . $error);
             }
-            throw new Exception("HTTP request failed");
+            throw new Exception("HTTP request failed: " . $error);
         }
         
         if ($http_code >= 400) {
             if (DEBUG_MODE) {
                 error_log("HTTP Error {$http_code}: " . $response);
             }
-            throw new Exception("HTTP request failed with status {$http_code}");
+            throw new Exception("HTTP request failed with status {$http_code}: " . $response);
         }
         
-        return json_decode($response, true);
+        $decoded_response = json_decode($response, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            if (DEBUG_MODE) {
+                error_log("JSON decode error: " . json_last_error_msg());
+                error_log("Raw response: " . $response);
+            }
+            throw new Exception("Invalid JSON response from server");
+        }
+        
+        return $decoded_response;
     }
 }
 
@@ -303,6 +364,7 @@ function logout() {
     $auth->logout();
 }
 
+// Global auth helper functions
 function auth_user() {
     return get_user();
 }
