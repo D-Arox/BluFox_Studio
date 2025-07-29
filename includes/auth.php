@@ -3,108 +3,83 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database.php';
 
 class RobloxAuth {
-    private const ROBLOX_API_BASE = 'https://apis.roblox.com';
-    private const ROBLOX_AUTH_URL = 'https://authorize.roblox.com/v1/authorize';
-    private const ROBLOX_TOKEN_URL = 'https://apis.roblox.com/oauth/v1/token';
-    private const ROBLOX_USER_URL = 'https://apis.roblox.com/oauth/v1/userinfo';
-    
+    private const AUTH_URL = 'https://apis.roblox.com/oauth/v1/authorize';
+    private const TOKEN_URL = 'https://apis.roblox.com/oauth/v1/token';
+    private const USERINFO_URL = 'https://apis.roblox.com/oauth/v1/userinfo';
+
     private $client_id;
     private $client_secret;
     private $redirect_uri;
-    
+
     public function __construct() {
         $this->client_id = ROBLOX_CLIENT_ID;
         $this->client_secret = ROBLOX_CLIENT_SECRET;
         $this->redirect_uri = ROBLOX_REDIRECT_URI;
-        
-        if (empty($this->client_id)) {
-            throw new Exception("Roblox Client ID not configured");
-        }
-        
-        if (empty($this->client_secret)) {
-            throw new Exception("Roblox Client Secret not configured");
-        }
-        
-        if (empty($this->redirect_uri)) {
-            throw new Exception("Roblox Redirect URI not configured");
+
+        if (!$this->client_id || !$this->client_secret || !$this->redirect_uri) {
+            throw new Exception("OAuth credentials or redirect URI are not set.");
         }
     }
-    
+
     public function getAuthorizationUrl($state = null) {
         $state = $state ?: bin2hex(random_bytes(16));
         $_SESSION['oauth_state'] = $state;
         $_SESSION['oauth_nonce'] = bin2hex(random_bytes(16));
-        
-        echo $this->client_id;
 
         $params = [
+            'response_type' => 'code',
             'client_id' => $this->client_id,
             'redirect_uri' => $this->redirect_uri,
             'scope' => 'openid profile',
-            'response_type' => 'code',
             'state' => $state,
             'nonce' => $_SESSION['oauth_nonce']
         ];
-        
-        if (DEBUG_MODE) {
-            error_log("OAuth Authorization URL generated with params: " . json_encode($params));
-        }
-        
-        return self::ROBLOX_AUTH_URL . '?' . http_build_query($params);
+
+        return self::AUTH_URL . '?' . http_build_query($params);
     }
-    
+
     public function getAccessToken($code, $state) {
-        // Verify state parameter
         if (!isset($_SESSION['oauth_state']) || $state !== $_SESSION['oauth_state']) {
-            throw new Exception("Invalid state parameter - possible CSRF attack");
+            throw new Exception('Invalid state parameter');
         }
-        
+
         unset($_SESSION['oauth_state']);
         unset($_SESSION['oauth_nonce']);
-        
-        $data = [
-            'client_id' => $this->client_id,
-            'client_secret' => $this->client_secret,
-            'code' => $code,
+
+        $postData = [
             'grant_type' => 'authorization_code',
-            'redirect_uri' => $this->redirect_uri
+            'code' => $code,
+            'redirect_uri' => $this->redirect_uri,
+            'client_id' => $this->client_id,
+            'client_secret' => $this->client_secret
         ];
-        
-        if (DEBUG_MODE) {
-            error_log("Requesting access token with data: " . json_encode(array_merge($data, ['client_secret' => '[HIDDEN]'])));
-        }
-        
-        $response = $this->makeHttpRequest(self::ROBLOX_TOKEN_URL, 'POST', $data, [
+
+        $headers = [
             'Content-Type: application/x-www-form-urlencoded',
             'Accept: application/json'
-        ]);
-        
-        if (!$response || !isset($response['access_token'])) {
-            if (DEBUG_MODE) {
-                error_log("Token exchange failed. Response: " . json_encode($response));
-            }
-            throw new Exception("Failed to obtain access token: " . ($response['error_description'] ?? 'Unknown error'));
+        ];
+
+        $response = $this->makeHttpRequest(self::TOKEN_URL, 'POST', $postData, $headers);
+
+        if (!isset($response['access_token'])) {
+            throw new Exception('Access token not returned: ' . json_encode($response));
         }
-        
-        if (DEBUG_MODE) {
-            error_log("Access token obtained successfully");
-        }
-        
+
         return $response;
     }
-    
+
     public function getUserInfo($access_token) {
         $headers = [
             'Authorization: Bearer ' . $access_token,
-            'Content-Type: application/json'
+            'Accept: application/json'
         ];
-        
-        $response = $this->makeHttpRequest(self::ROBLOX_USER_URL, 'GET', null, $headers);
-        
-        if (!$response || !isset($response['sub'])) {
-            throw new Exception("Failed to fetch user information");
+
+        $response = $this->makeHttpRequest(self::USERINFO_URL, 'GET', null, $headers);
+
+        if (!isset($response['sub'])) {
+            throw new Exception('Failed to retrieve user info.');
         }
-        
+
         return $response;
     }
 

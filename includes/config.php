@@ -30,9 +30,9 @@ function loadEnv($path) {
     }
 }
 
-$env_path = __DIR__ . '/../../../.env';
+$env_path = __DIR__ . '/../../.env';
 if (!file_exists($env_path)) {
-    $env_path = __DIR__ . '/../../../.env';
+    $env_path = __DIR__ . '/../../.env';
 }
 
 try {
