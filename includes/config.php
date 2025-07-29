@@ -109,21 +109,4 @@ function asset_url($path) {
 // Include database connection
 require_once __DIR__ . '/database.php';
 
-// Auto-load classes
-spl_autoload_register(function ($class_name) {
-    $directories = [
-        __DIR__ . '/classes/',
-        __DIR__ . '/models/',
-        __DIR__ . '/controllers/',
-    ];
-    
-    foreach ($directories as $directory) {
-        $file = $directory . $class_name . '.php';
-        if (file_exists($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
-
 ?>
