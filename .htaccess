@@ -1,4 +1,3 @@
-# BluFox Studio - Fixed Apache Configuration
 RewriteEngine On
 
 # Security Headers
@@ -28,7 +27,7 @@ RewriteEngine On
 </FilesMatch>
 
 # Deny access to sensitive directories (but explicitly allow dashboard, auth, admin)
-<DirectoryMatch "^(?!.*(dashboard|admin|auth|assets|includes|errors|pages|portfolio|profile|services|vantara))(database|logs|cache|vendor|node_modules)">
+<DirectoryMatch "^(?!.*(dashboard|admin|auth|assets|includes|errors))(database|logs|cache|vendor|node_modules)">
     Require all denied
 </DirectoryMatch>
 
@@ -46,6 +45,16 @@ RewriteEngine On
     </RequireAll>
 </IfModule>
 
+ErrorDocument 400 /errors/400.php
+ErrorDocument 401 /errors/401.php
+ErrorDocument 402 /errors/402.php
+ErrorDocument 403 /errors/403.php
+ErrorDocument 404 /errors/404.php
+ErrorDocument 500 /errors/500.php
+
+# Allow direct access to error pages
+RewriteRule ^errors/ - [L]
+
 # PRIORITY 1: Direct file access - if file exists, serve it directly
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
@@ -54,22 +63,14 @@ RewriteRule ^ - [L]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# PRIORITY 3: Error page routes (for testing) - BEFORE other routes to prevent conflicts
-RewriteRule ^error/400/?$ errors/400.php [L,QSA]
-RewriteRule ^error/401/?$ errors/401.php [L,QSA]
-RewriteRule ^error/402/?$ errors/402.php [L,QSA]
-RewriteRule ^error/403/?$ errors/403.php [L,QSA]
-RewriteRule ^error/404/?$ errors/404.php [L,QSA]
-RewriteRule ^error/500/?$ errors/500.php [L,QSA]
-
-# PRIORITY 4: Authentication routes (HIGHEST PRIORITY for URL rewriting)
+# PRIORITY 3: Authentication routes
 RewriteRule ^auth/login/?$ auth/login.php [L,QSA]
 RewriteRule ^auth/callback/?$ auth/callback.php [L,QSA]
 RewriteRule ^auth/logout/?$ auth/logout.php [L,QSA]
 RewriteRule ^auth/set-remember-preference/?$ auth/set-remember-preference.php [L,QSA]
 RewriteRule ^auth/set-remember-session/?$ auth/set-remember-session.php [L,QSA]
 
-# PRIORITY 5: Dashboard routes
+# PRIORITY 4: Dashboard routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^dashboard/?$ dashboard/index.php [L,QSA]
@@ -78,7 +79,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^dashboard/([^/]+)/?$ dashboard/$1.php [L,QSA]
 
-# PRIORITY 6: Admin routes
+# PRIORITY 5: Admin routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^admin/?$ admin/index.php [L,QSA]
@@ -91,7 +92,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^admin/([^/]+)/([^/]+)/?$ admin/$1/$2.php [L,QSA]
 
-# PRIORITY 7: API routes
+# PRIORITY 6: API routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/([^/]+)/?$ api/$1.php [L,QSA]
@@ -100,7 +101,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/([^/]+)/([^/]+)/?$ api/$1/$2.php [L,QSA]
 
-# PRIORITY 8: Portfolio routes
+# PRIORITY 7: Portfolio routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^portfolio/?$ portfolio/index.php [L,QSA]
@@ -109,7 +110,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^portfolio/([^/]+)/?$ portfolio/project.php?slug=$1 [L,QSA]
 
-# PRIORITY 9: Services routes
+# PRIORITY 8: Services routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^services/?$ services/index.php [L,QSA]
@@ -118,7 +119,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^services/([^/]+)/?$ services/service.php?slug=$1 [L,QSA]
 
-# PRIORITY 10: Vantara routes
+# PRIORITY 9: Vantara routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^vantara/?$ vantara/index.php [L,QSA]
@@ -127,7 +128,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^vantara/([^/]+)/?$ vantara/$1.php [L,QSA]
 
-# PRIORITY 11: Static pages
+# PRIORITY 10: Static pages
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^about/?$ pages/about.php [L,QSA]
@@ -148,7 +149,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^pricing/?$ pages/pricing.php [L,QSA]
 
-# PRIORITY 12: Profile routes
+# PRIORITY 11: Profile route
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^profile/?$ profile/index.php [L,QSA]
@@ -157,7 +158,32 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^profile/([^/]+)/?$ profile/$1.php [L,QSA]
 
-# PRIORITY 13: Remove trailing slashes (LAST PRIORITY)
+# PRIORITY 12: Error page routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^test/400/?$ errors/400.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^test/401/?$ errors/401.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^test/402/?$ errors/402.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^test/403/?$ errors/403.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^test/404/?$ errors/404.php [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^test/500/?$ errors/500.php [L,QSA]
+
+# PRIORITY 13: Remove trailing slashes
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.+)/$ /$1 [R=301,L]
@@ -189,14 +215,6 @@ RewriteRule ^(.+)/$ /$1 [R=301,L]
     AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/xml application/rss+xml font/woff font/woff2 image/svg+xml image/x-icon
 </IfModule>
 
-# Error documents - All error pages with proper path
-ErrorDocument 400 /errors/400.php
-ErrorDocument 401 /errors/401.php
-ErrorDocument 402 /errors/402.php
-ErrorDocument 403 /errors/403.php
-ErrorDocument 404 /errors/404.php
-ErrorDocument 500 /errors/500.php
-
 # PHP settings
 <IfModule mod_php.c>
     php_flag expose_php off
@@ -213,7 +231,7 @@ ErrorDocument 500 /errors/500.php
     php_value session.use_strict_mode 1
 </IfModule>
 
-# Security protection (MOVED TO END to avoid conflicts)
+# Security protection
 <IfModule mod_rewrite.c>
     RewriteCond %{QUERY_STRING} (<|%3C)([^s]*s)+cript.*(>|%3E) [NC,OR]
     RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
