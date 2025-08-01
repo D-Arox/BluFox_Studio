@@ -20,14 +20,14 @@ if (session_status() === PHP_SESSION_NONE) {
 <link rel="stylesheet" href="/assets/css/nav.css">
 <link rel="stylesheet" href="/assets/css/header.css">
 <link rel="stylesheet" href="/assets/css/components.css">
-<link rel="stylesheet" href="/assets/css/footer.css">
+<!-- <link rel="stylesheet" href="/assets/css/footer.css"> -->
 
-<link rel="stylesheet" href="/assets/css/pages/admin.css">
+<!-- <link rel="stylesheet" href="/assets/css/pages/admin.css"> -->
 <link rel="stylesheet" href="/assets/css/pages/home.css">
-<link rel="stylesheet" href="/assets/css/pages/about.css">
-<link rel="stylesheet" href="/assets/css/pages/contact.css">
-<link rel="stylesheet" href="/assets/css/pages/projects.css">
-<link rel="stylesheet" href="/assets/css/pages/services.css">
+<!-- <link rel="stylesheet" href="/assets/css/pages/about.css"> -->
+<!-- <link rel="stylesheet" href="/assets/css/pages/contact.css"> -->
+<!-- <link rel="stylesheet" href="/assets/css/pages/projects.css"> -->
+<!-- <link rel="stylesheet" href="/assets/css/pages/services.css"> -->
 
 <link rel="stylesheet" href="/assets/css/hero/hero.css">
 

@@ -6,11 +6,18 @@
 }
 
 .hero-title {
-    font-family: var(--font-family-sans);
-    font-size: var(--font-size-6xl);
+    font-size: clamp(3rem, 8vw, 6rem);
     font-weight: 900;
-    padding: 0;
-    margin: 0;
+    background: var(--gradient-neon);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1.5rem;
+    animation: titleGlow 3s ease-in-out infinite;
+}
+
+@keyframes titleGlow {
+    0%, 100% { filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.5)); }
+    50% { filter: drop-shadow(0 0 40px rgba(255, 0, 255, 0.7)); }
 }
 
 .hero-subtitle {
@@ -31,6 +38,10 @@
     text-align: center;
     animation: statCount 2s ease-out;
     padding: var(--space-4) var(--space-6);
+}
+
+.hero-stat:hover {
+    border-color: var(--border-neon);
 }
 
 .hero-stat-number {
@@ -55,4 +66,67 @@
 @keyframes statCount {
     0% { transform: scale(0.8); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
+}
+
+.scroll-indicator {
+    position: absolute;
+    bottom: var(--space-8);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    z-index: 10;
+}
+
+.scroll-indicator:hover {
+    transform: translateX(-50%) translateY(-2px);
+}
+
+.scroll-mouse {
+    width: 24px;
+    height: 38px;
+    border: 2px solid var(--primary-blue);
+    border-radius: 12px;
+    position: relative;
+    margin-bottom: var(--space-3);
+    transition: var(--transition-normal);
+}
+
+.scroll-indicator:hover .scroll-mouse {
+    border-color: var(--primary-cyan);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+}
+
+.scroll-wheel {
+    width: 3px;
+    height: 8px;
+    background: var(--gradient-secondary);
+    border-radius: 2px;
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: scrollWheel 2s infinite;
+}
+
+.scroll-indicator:hover .scroll-wheel {
+    background: var(--primary-cyan);
+}
+
+@keyframes scrollWheel {
+    0% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    50% {
+        opacity: 0.3;
+        transform: translateX(-50%) translateY(12px);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
 }

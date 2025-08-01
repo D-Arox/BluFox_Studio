@@ -85,14 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             navbar?.classList.remove("scrolled");
         }
-
-        // Hide navbar on scroll down, show on scroll up
-        if (scrollY > lastScrollY && scrollY > 200) {
-            if (navbar) navbar.style.transform = "translateY(-100%)";
-        } else {
-            if (navbar) navbar.style.transform = "translateY(0)";
-        }
-
+        
         // Add theme-aware glow effect when scrolling
         if (navbar && scrollY > 50) {
             navbar.style.boxShadow = currentTheme === 'light'

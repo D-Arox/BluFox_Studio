@@ -8,7 +8,6 @@
     padding: var(--space-5) 0;
     -webkit-backdrop-filter: blur(25px) saturate(180%);
     background: rgba(10, 10, 15, 0.85);
-    border-bottom: 1px solid var(--border-primary);
     transition: all var(--transition-normal);
 }
 
@@ -43,7 +42,7 @@
 .brand-logo {
     width: 50px;
     height: 50px;
-    background: var(--gradient-neon);
+    /* background: var(--gradient-neon); */
     border-radius: var(--radius-xl);
     display: flex;
     align-items: center;
@@ -54,9 +53,9 @@
     transition: all var(--transition-normal);
     position: relative;
     overflow: hidden;
-    box-shadow: var(--shadow-neon);
+    /* box-shadow: var(--shadow-neon); */
     object-fit: contain;
-    padding: var(--space-1);
+    /* padding: var(--space-1); */
     aspect-ratio: 1/1;
 }
 
@@ -85,8 +84,8 @@
 }
 
 .brand-link:hover .brand-logo {
-    transform: scale(1.08) rotate(-5deg);
-    box-shadow: var(--shadow-neon), 0 0 60px rgba(0, 255, 255, 0.6);
+    transform: scale(1.08) /* rotate(-5deg) */;
+    /* box-shadow: var(--shadow-neon), 0 0 60px rgba(0, 255, 255, 0.6); */
 }
 
 .brand-link:hover .brand-logo::before {
@@ -94,15 +93,16 @@
 }
 
 .brand-text {
-    font-size: var(--font-size-2xl);
+    font-size: var(--font-size-xl);
     font-weight: 800;
-    font-family: var(--font-family-sans);
-    background: var(--gradient-neon);
+    /* font-family: var(--font-family-sans); */
+    color: var(--text-primary);
+    /* background: var(--gradient-neon);
     -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    -webkit-text-fill-color: transparent; */
+    /* background-clip: text; */
     transition: all var(--transition-normal);
-    text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+    /* text-shadow: 0 0 30px rgba(0, 255, 255, 0.5); */
 }
 
 .nav-menu {

@@ -14,16 +14,22 @@ if (session_status() === PHP_SESSION_NONE) {
     </p>
     <div class="hero-stats">
         <div class="hero-stat card">
-            <span class="hero-stat-number">150+</span>
+            <span class="hero-stat-number">0+</span>
             <span class="hero-stat-label">Games Developed</span>
         </div>
         <div class="hero-stat card">
-            <span class="hero-stat-number">2M+</span>
+            <span class="hero-stat-number">0+</span>
             <span class="hero-stat-label">Players Reached</span>
         </div>
-        <div class="hero-stat card">
-            <span class="hero-stat-number">99%</span>
+        <!-- <div class="hero-stat card">
+            <span class="hero-stat-number">0%</span>
             <span class="hero-stat-label">Client Satisfaction</span>
+        </div> -->
+    </div>
+    <div class="scroll-indicator" onclick="scrollToNextSection()">
+        <div class="scroll-mouse">
+            <div class="scroll-wheel"></div>
         </div>
+        <span class="scroll-text">Scroll</span>
     </div>
 </div>
