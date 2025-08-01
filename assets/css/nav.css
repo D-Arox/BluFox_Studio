@@ -1,16 +1,3 @@
-:root {
-    --nav-element-height: 3.75vh;
-    --gradient-matrix: linear-gradient(135deg, #00FF41 0%, #0099FF 100%);
-}
-
-:root[data-theme="light"] {
-    --nav-text-primary: #FFFFFF;
-    --nav-text-secondary: rgba(255, 255, 255, 0.85);
-    --nav-text-muted: rgba(255, 255, 255, 0.65);
-    
-    --theme-toggle-icon: rgba(255, 255, 255, 0.9);
-}
-
 .navbar {
     position: fixed;
     top: 0;
@@ -131,7 +118,7 @@
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(15px);
     border-radius: var(--radius-full);
-    padding: var(--space-4);
+    padding: var(--space-5);
     border: 1px solid var(--border-primary);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
     height: var(--nav-element-height);
@@ -144,7 +131,6 @@
 .nav-link {
     display: flex;
     align-items: center;
-    height: calc(var(--nav-element-height) - var(--space-4));
     padding: 0 var(--space-5);
     color: var(--nav-text-secondary, var(--text-secondary));
     text-decoration: none;

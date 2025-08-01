@@ -121,11 +121,20 @@
     --transition-bounce: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-/* Navigation Variables */
+/* Navigation */
 :root {
-    --nav-height: 80px;
-    --nav-element-height: 48px;
-    --nav-element-border-radius: var(--radius-xl);
+    --nav-element-height: 3.75vh;
+    --gradient-matrix: linear-gradient(135deg, #00FF41 0%, #0099FF 100%);
+    
+    --nav-base-padding: var(--space-5); 
+    --nav-scrolled-padding: var(--space-3); 
+    --nav-content-height: 52px; 
+    --nav-border-height: 1px;
+    
+    --nav-height-normal: calc(var(--nav-content-height) + (var(--nav-base-padding) * 2) + var(--nav-border-height));
+    --nav-height-scrolled: calc(var(--nav-content-height) + (var(--nav-scrolled-padding) * 2) + var(--nav-border-height));
+    
+    --actual-nav-height: var(--nav-height-normal);
 }
 
 /* Base Styles */

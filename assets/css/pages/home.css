@@ -1,3 +1,5 @@
-.hero-content.container {
-    background-color: red !important;
+.hero-section {
+    margin-top: var(--actual-nav-height, var(--nav-height-normal));
+    min-height: calc(100vh - var(--actual-nav-height, var(--nav-height-normal)));
+    background-color: red;
 }
