@@ -29,7 +29,9 @@ $current_page = 'dashboard';
 </head>
 <body>
     <?php include __DIR__ . '/../includes/components/header.php'; ?>
-    
+    <section class="container" style="height: 200vh">
+
+    </section> 
     <!-- <main class="dashboard-main">
         <div class="container">
             <div class="dashboard-header">

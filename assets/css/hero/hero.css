@@ -116,6 +116,12 @@
     background: var(--primary-cyan);
 }
 
+.scroll-indicator.fade-out {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: all 0.5s ease;
+}
+
 @keyframes scrollWheel {
     0% {
         opacity: 1;

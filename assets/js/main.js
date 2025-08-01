@@ -32,9 +32,9 @@ function scrollToNextSection() {
 let scrollTimeout;
 window.addEventListener('scroll', function() {
     const scrollIndicator = document.querySelector('.scroll-indicator');
-    if (scrollIndicator && window.scrollY > 100) {
+    if (scrollIndicator && window.scrollY > 1) {
         scrollIndicator.classList.add('fade-out');
-    } else if (scrollIndicator && window.scrollY <= 100) {
+    } else if (scrollIndicator && window.scrollY <= 1) {
         scrollIndicator.classList.remove('fade-out');
     }
 });
