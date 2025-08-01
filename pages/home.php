@@ -5,7 +5,5 @@ if (session_status() === PHP_SESSION_NONE) {
 ?>
 
 <section class="hero-section">
-    <div class="hero-content container">
-        
-    </div>
+    <?php include 'includes/hero_sections/hero_home.php' ?>
 </section>

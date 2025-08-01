@@ -2,6 +2,11 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+if (!preg_match('/\.php$/', $_SERVER['SCRIPT_NAME'])) {
+    header('Content-Type: text/html; charset=utf-8');
+}
+
 http_response_code(404);
 ?>
 <!DOCTYPE html>

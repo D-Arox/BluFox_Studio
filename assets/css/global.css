@@ -128,7 +128,7 @@
     
     --nav-base-padding: var(--space-5); 
     --nav-scrolled-padding: var(--space-3); 
-    --nav-content-height: 52px; 
+    --nav-content-height: 50px; 
     --nav-border-height: 1px;
     
     --nav-height-normal: calc(var(--nav-content-height) + (var(--nav-base-padding) * 2) + var(--nav-border-height));
@@ -163,7 +163,7 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: var(--theme-transition);
-    min-height: 100vh;
+    min-height: calc(100vh - var(--actual-nav-height, var(--nav-height-normal)));
     overflow-x: hidden;
 }
 
@@ -449,6 +449,8 @@ body {
 
 .bg-gradient { background: var(--gradient-primary); }
 .bg-glass { background: var(--bg-glass); }
+
+.inv-dummy {width: 100vw; height: 0; border: none; background-color: rgba(0, 0, 0, 0);}
 
 /* Responsive Design */
 @media (max-width: 768px) {

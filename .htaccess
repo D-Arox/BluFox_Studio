@@ -45,14 +45,35 @@ RewriteEngine On
     </RequireAll>
 </IfModule>
 
-ErrorDocument 400 /errors/400.php
-ErrorDocument 401 /errors/401.php
-ErrorDocument 402 /errors/402.php
-ErrorDocument 403 /errors/403.php
-ErrorDocument 404 /errors/404.php
-ErrorDocument 500 /errors/500.php
+# Error Documents
+ErrorDocument 400 https://blufox-studio.com/errors/400.php
+ErrorDocument 401 https://blufox-studio.com/errors/401.php
+ErrorDocument 402 https://blufox-studio.com/errors/402.php
+ErrorDocument 403 https://blufox-studio.com/errors/403.php
+ErrorDocument 404 https://blufox-studio.com/errors/404.php
+ErrorDocument 500 https://blufox-studio.com/errors/500.php
 
 Options -Indexes
+
+# =============================================
+# PHP EXTENSION REMOVAL - PRIORITY 0
+# =============================================
+
+# Hide .php extension from URLs
+# Redirect example.com/page.php to example.com/page
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/+(.+)\.php[\s?] [NC]
+RewriteRule ^ /%1? [R=301,L]
+
+# Allow access to PHP files without extension
+# When someone visits example.com/page, serve example.com/page.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^([^.]+)/?$ $1.php [L,QSA]
+
+# =============================================
+# EXISTING ROUTES - UPDATED PRIORITIES
+# =============================================
 
 # Allow direct access to error pages
 RewriteRule ^errors/ - [L]
@@ -187,8 +208,11 @@ RewriteRule ^test/500/?$ errors/500.php [L,QSA]
 
 # PRIORITY 13: Remove trailing slashes
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.+)/$ /$1 [R=301,L]
+
+# =============================================
+# PERFORMANCE & CACHING
+# =============================================
 
 # Cache static assets
 <IfModule mod_expires.c>
@@ -233,7 +257,10 @@ RewriteRule ^(.+)/$ /$1 [R=301,L]
     php_value session.use_strict_mode 1
 </IfModule>
 
-# Security protection
+# =============================================
+# SECURITY PROTECTION
+# =============================================
+
 <IfModule mod_rewrite.c>
     RewriteCond %{QUERY_STRING} (<|%3C)([^s]*s)+cript.*(>|%3E) [NC,OR]
     RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
