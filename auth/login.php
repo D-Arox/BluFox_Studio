@@ -1,10 +1,13 @@
 <?php
+ini_set('display_errors', E_ALL);
+ini_set('log_errors', 1);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../includes/config.php';
-require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../config/auth.php';
 
 // Helper function to check authentication (only if not already defined)
 if (!function_exists('is_authenticated')) {
@@ -84,7 +87,7 @@ $current_page = 'login';
                 </div>
             </div>
             
-            <!-- Login Form (like your original) -->
+            <!-- Login Form -->
             <form id="loginForm" class="auth-form" action="#" method="POST">
                 <div class="auth-buttons">
                     <?php 
