@@ -1,5 +1,5 @@
 <section class="hero-section">
-    <div class="hero-content">
-        
+    <div class="hero-content container">
+
     </div>
 </section>
