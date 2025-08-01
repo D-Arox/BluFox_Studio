@@ -21,6 +21,7 @@ if (session_status() === PHP_SESSION_NONE) {
 <link rel="stylesheet" href="/assets/css/header.css">
 <link rel="stylesheet" href="/assets/css/components.css">
 <!-- <link rel="stylesheet" href="/assets/css/footer.css"> -->
+<link rel="stylesheet" href="/assets/css/cookie-consent.css">
 
 <!-- <link rel="stylesheet" href="/assets/css/pages/admin.css"> -->
 <link rel="stylesheet" href="/assets/css/pages/home.css">
@@ -35,3 +36,4 @@ if (session_status() === PHP_SESSION_NONE) {
 
 <script src="/assets/js/main.js"></script>
 <script src="/assets/js/nav.js"></script>
+<script src="/assets/js/cookie-consent.js"></script>

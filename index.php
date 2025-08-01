@@ -17,5 +17,6 @@ $page_description = "BluFox Studio - Professional Roblox game development, scrip
 <body>
     <?php include 'includes/components/header.php'; ?>
     <?php include 'pages/home.php'; ?>
+    <?php include 'includes/components/cookie-consent.php'; ?>
 </body>
 </html>
