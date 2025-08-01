@@ -378,91 +378,6 @@
     margin: var(--space-3) 0;
 }
 
-.theme-toggle {
-    width: var(--nav-element-height);
-    height: var(--nav-element-height);
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    backdrop-filter: blur(10px);
-    position: relative;
-    overflow: hidden;
-}
-
-.theme-toggle::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: var(--gradient-neon);
-    opacity: 0;
-    transition: opacity var(--transition-fast);
-}
-
-.theme-toggle:hover {
-    border-color: var(--border-neon);
-    transform: scale(1.05) rotate(10deg);
-    box-shadow: 0 0 25px rgba(0, 255, 255, 0.3);
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.theme-toggle:hover::before {
-    opacity: 0.1;
-}
-
-.theme-toggle:active {
-    transform: scale(0.95) rotate(-5deg);
-}
-
-.theme-icon {
-    width: 22px;
-    height: 22px;
-    stroke: var(--theme-toggle-icon, var(--text-secondary));
-    transition: all var(--transition-fast);
-    position: relative;
-    z-index: 1;
-    stroke-width: 2;
-}
-
-.theme-toggle:hover .theme-icon {
-    stroke: var(--text-neon);
-    filter: drop-shadow(0 0 8px rgba(0, 255, 255, 0.8));
-}
-
-.theme-icon-dark {
-    display: none;
-}
-
-.theme-icon-light {
-    display: block;
-}
-
-:root[data-theme="light"] .theme-icon-dark {
-    display: block;
-}
-
-:root[data-theme="light"] .theme-icon-light {
-    display: none;
-}
-
-.theme-toggle.switching {
-    animation: themeSwitch 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-@keyframes themeSwitch {
-    0% { transform: scale(1) rotate(0deg); }
-    50% { transform: scale(1.2) rotate(180deg); filter: hue-rotate(180deg); }
-    100% { transform: scale(1) rotate(360deg); }
-}
-
-
 .mobile-menu-toggle {
     display: none;
     width: var(--nav-element-height);
@@ -633,10 +548,6 @@
         transform: none;
         margin-top: var(--space-4);
         width: 100%;
-    }
-
-    .theme-toggle {
-        align-self: center;
     }
 }
 
