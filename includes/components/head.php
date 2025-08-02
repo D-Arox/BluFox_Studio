@@ -75,8 +75,11 @@ if (isset($page_css_files[$current_page])) {
 
 <!-- Security Headers -->
 <meta http-equiv="Strict-Transport-Security" content="max-age=31536000; includeSubDomains">
-<meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
+
+<!-- Scripts -->
+<script src="/assets/js/main.js"></script>
+<script src="/assets/js/nav.js"></script>
 
 <!-- JSON-LD Structured Data -->
 <script type="application/ld+json">
