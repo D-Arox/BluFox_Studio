@@ -9,7 +9,15 @@ if (file_exists(__DIR__ . '/../.env')) {
         if (strpos(trim($line), '#') === 0) continue;
         if (strpos($line, '=') !== false) {
             list($name, $value) = explode('=', $line, 2);
-            $_ENV[trim($name)] = trim($value);
+            $name = trim($name);
+            $value = trim($value);
+            
+            if ((substr($value, 0, 1) === '"' && substr($value, -1) === '"') ||
+                (substr($value, 0, 1) === "'" && substr($value, -1) === "'")) {
+                $value = substr($value, 1, -1);
+            }
+            
+            $_ENV[$name] = $value;
         }
     }
 }
@@ -113,7 +121,7 @@ define('FEATURES', [
 ]);
 
 // Timezone
-date_default_timezone_set($_ENV['TIMEZONE'] ?? 'UTC+2');
+date_default_timezone_set($_ENV['TIMEZONE'] ?? 'Europe/Berlin');
 
 // Session Configuration
 if (session_status() === PHP_SESSION_NONE) {

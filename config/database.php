@@ -1,7 +1,6 @@
 <?php
-if (!defined('BLUFOX_CONFIG')) {
-    require_once __DIR__ . '/config.php';
-}
+// Ensure config is always loaded
+require_once __DIR__ . '/config.php';
 
 class Database {
     private static $instance = null;
@@ -10,6 +9,15 @@ class Database {
 
     private function __construct() {
         try {
+            // Debug output (remove after fixing)
+            if (DEBUG_MODE) {
+                error_log("DB Connection Debug:");
+                error_log("DB_HOST: " . (defined('DB_HOST') ? DB_HOST : 'NOT DEFINED'));
+                error_log("DB_NAME: " . (defined('DB_NAME') ? DB_NAME : 'NOT DEFINED'));
+                error_log("DB_USER: " . (defined('DB_USER') ? DB_USER : 'NOT DEFINED'));
+                error_log("DB_PASS: " . (defined('DB_PASS') ? 'DEFINED' : 'NOT DEFINED'));
+            }
+
             $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -20,7 +28,6 @@ class Database {
             ];
 
             $this->connection = new PDO($dsn, DB_USER, DB_PASS, $options);
-            $this->connection->exec("SET time_zone = '+02:00'");
         } catch (PDOException $e) {
             error_log("Database connection failed: " . $e->getMessage());
             if (DEBUG_MODE) {
@@ -251,6 +258,57 @@ class Database {
         return true;
     }
 
+    public function count($table, $conditions = []) {
+        $sql = "SELECT COUNT(*) as count FROM $table";
+        
+        if (!empty($conditions)) {
+            $whereClause = [];
+            foreach ($conditions as $key => $value) {
+                if (strpos($key, '!=') !== false) {
+                    $field = trim(str_replace('!=', '', $key));
+                    $whereClause[] = "$field != :$field";
+                } else {
+                    $whereClause[] = "$key = :$key";
+                }
+            }
+            $sql .= " WHERE " . implode(' AND ', $whereClause);
+        }
+        
+        $this->prepare($sql);
+        
+        foreach ($conditions as $key => $value) {
+            if (strpos($key, '!=') !== false) {
+                $field = trim(str_replace('!=', '', $key));
+                $this->bind(":$field", $value);
+            } else {
+                $this->bind(":$key", $value);
+            }
+        }
+        
+        $result = $this->fetch();
+        return (int) $result['count'];
+    }
+
+    public function raw($sql, $params = []) {
+        $this->prepare($sql);
+        
+        foreach ($params as $key => $value) {
+            $this->bind($key, $value);
+        }
+        
+        return $this->fetchAll();
+    }
+
+    public function rawSingle($sql, $params = []) {
+        $this->prepare($sql);
+        
+        foreach ($params as $key => $value) {
+            $this->bind($key, $value);
+        }
+        
+        return $this->fetch();
+    }
+
     public function getStats() {
         $stats = [];
         
@@ -296,10 +354,10 @@ class Database {
 try {
     $db = Database::getInstance();
 
-    if (!isset($_SESSION['migrations_run'])) {
-        $db->runMigrations();
-        $_SESSION['migrations_run'] = true;
-    }
+    // if (!isset($_SESSION['migrations_run'])) {
+    //     $db->runMigrations();
+    //     $_SESSION['migrations_run'] = true;
+    // }
 } catch (Exception $e) {
     error_log("Database initialization failed: " . $e->getMessage());
     if (DEBUG_MODE) {

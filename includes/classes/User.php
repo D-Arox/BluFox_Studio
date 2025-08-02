@@ -184,6 +184,18 @@ class User extends BaseModel {
         return $result;
     }
 
+    public function getUserSessions($userId) {
+        return $this->raw("SELECT * FROM user_sessions WHERE user_id = :user_id AND expires_at > NOW() ORDER BY created_at DESC", 
+            [':user_id' => $userId]);
+    }
+
+    public function revokeUserSession($sessionId, $userId) {
+        return $this->raw("DELETE FROM user_sessions WHERE id = :session_id AND user_id = :user_id", [
+            ':session_id' => $sessionId,
+            ':user_id' => $userId
+        ]);
+    }
+
     public function getApiKeys($userId) {
         return $this->raw("SELECT * FROM api_keys WHERE user_id = :user_id AND is_active = 1 ORDER BY created_at DESC", 
             [':user_id' => $userId]);

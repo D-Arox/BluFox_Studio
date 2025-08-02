@@ -6,7 +6,6 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Correct path to config outside public_html
 include_once __DIR__ . '/../config/config.php';
 
 $page_title = "BluFox Studio - Professional Roblox Development";

@@ -11,7 +11,7 @@ class RobloxOAuth {
         $this->redirectUri = ROBLOX_REDIRECT_URI;
         $this->scopes = ['openid', 'profile'];
     }
-
+    
     public function getAuthorizationUrl($state = null) {
         if (!$state) {
             $state = generate_random_string(32);
@@ -29,7 +29,7 @@ class RobloxOAuth {
         
         return 'https://apis.roblox.com/oauth/v1/authorize?' . http_build_query($params);
     }
-
+    
     public function getAccessToken($code, $state = null) {
         if ($state && (!isset($_SESSION['oauth_state']) || $_SESSION['oauth_state'] !== $state)) {
             throw new Exception('Invalid state parameter');
@@ -51,7 +51,7 @@ class RobloxOAuth {
         
         return $response;
     }
-
+    
     public function getUserInfo($accessToken) {
         $headers = ['Authorization: Bearer ' . $accessToken];
         $response = $this->makeRequest('GET', 'https://apis.roblox.com/oauth/v1/userinfo', null, $headers);
@@ -64,8 +64,8 @@ class RobloxOAuth {
         
         return array_merge($response, $userDetails);
     }
-
-    private function getRobloxUserDetails($userId) {
+    
+    public function getRobloxUserDetails($userId) {
         try {
             $profile = $this->makeRequest('GET', "https://users.roblox.com/v1/users/$userId");
             $avatar = $this->makeRequest('GET', "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=$userId&size=420x420&format=Png&isCircular=false");
@@ -94,101 +94,8 @@ class RobloxOAuth {
             ];
         }
     }
-
-    public function refreshToken($refreshToken) {
-        $data = [
-            'grant_type' => 'refresh_token',
-            'refresh_token' => $refreshToken,
-            'client_id' => $this->clientId,
-            'client_secret' => $this->clientSecret
-        ];
-        
-        $response = $this->makeRequest('POST', 'https://apis.roblox.com/oauth/v1/token', $data);
-        
-        if (!$response || !isset($response['access_token'])) {
-            throw new Exception('Failed to refresh access token');
-        }
-        
-        return $response;
-    }
-
-    public function revokeToken($token, $tokenType = 'access_token') {
-        $data = [
-            'token' => $token,
-            'token_type_hint' => $tokenType,
-            'client_id' => $this->clientId,
-            'client_secret' => $this->clientSecret
-        ];
-        
-        $response = $this->makeRequest('POST', 'https://apis.roblox.com/oauth/v1/token/revoke', $data);
-        return $response !== false;
-    }
-
-    public function getUserGames($userId, $accessToken = null) {
-        try {
-            $url = "https://games.roblox.com/v2/users/$userId/games?accessFilter=Public&sortOrder=Asc&limit=50";
-            $headers = $accessToken ? ['Authorization: Bearer ' . $accessToken] : [];
-            
-            $response = $this->makeRequest('GET', $url, null, $headers);
-            return $response['data'] ?? [];
-        } catch (Exception $e) {
-            error_log("Failed to get user games: " . $e->getMessage());
-            return [];
-        }
-    }
-
-    public function getUserBadges($userId, $limit = 10) {
-        try {
-            $url = "https://badges.roblox.com/v1/users/$userId/badges?limit=$limit&sortOrder=Asc";
-            $response = $this->makeRequest('GET', $url);
-            return $response['data'] ?? [];
-        } catch (Exception $e) {
-            error_log("Failed to get user badges: " . $e->getMessage());
-            return [];
-        }
-    }
-
-    public function verifyGameOwnership($userId, $gameId, $accessToken) {
-        try {
-            $games = $this->getUserGames($userId, $accessToken);
-            foreach ($games as $game) {
-                if ($game['id'] == $gameId) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (Exception $e) {
-            error_log("Failed to verify game ownership: " . $e->getMessage());
-            return false;
-        }
-    }
-
-    public function getGameDetails($gameId) {
-        try {
-            $response = $this->makeRequest('GET', "https://games.roblox.com/v1/games?universeIds=$gameId");
-            return $response['data'][0] ?? null;
-        } catch (Exception $e) {
-            error_log("Failed to get game details: " . $e->getMessage());
-            return null;
-        }
-    }
-
-    public function getGameThumbnail($universeId, $size = '768x432') {
-        try {
-            $url = "https://thumbnails.roblox.com/v1/games/icons?universeIds=$universeId&returnPolicy=PlaceHolder&size={$size}&format=Png&isCircular=false";
-            $response = $this->makeRequest('GET', $url);
-            
-            if ($response && isset($response['data'][0]['imageUrl'])) {
-                return $response['data'][0]['imageUrl'];
-            }
-            return null;
-        } catch (Exception $e) {
-            error_log("Failed to get game thumbnail: " . $e->getMessage());
-            return null;
-        }
-    }
-
-    private function makeRequest($method, $url, $data = null, $headers = []) {
+    
+    public function makeRequest($method, $url, $data = null, $headers = []) {
         $ch = curl_init();
         
         curl_setopt_array($ch, [
@@ -252,7 +159,104 @@ class RobloxOAuth {
         
         return $decoded;
     }
-
+    
+    public function refreshToken($refreshToken) {
+        $data = [
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $refreshToken,
+            'client_id' => $this->clientId,
+            'client_secret' => $this->clientSecret
+        ];
+        
+        $response = $this->makeRequest('POST', 'https://apis.roblox.com/oauth/v1/token', $data);
+        
+        if (!$response || !isset($response['access_token'])) {
+            throw new Exception('Failed to refresh access token');
+        }
+        
+        return $response;
+    }
+    
+    public function revokeToken($token, $tokenType = 'access_token') {
+        $data = [
+            'token' => $token,
+            'token_type_hint' => $tokenType,
+            'client_id' => $this->clientId,
+            'client_secret' => $this->clientSecret
+        ];
+        
+        $response = $this->makeRequest('POST', 'https://apis.roblox.com/oauth/v1/token/revoke', $data);
+        return $response !== false;
+    }
+    
+    public function getUserGames($userId, $accessToken = null) {
+        try {
+            $url = "https://games.roblox.com/v2/users/$userId/games?accessFilter=Public&sortOrder=Asc&limit=50";
+            $headers = $accessToken ? ['Authorization: Bearer ' . $accessToken] : [];
+            
+            $response = $this->makeRequest('GET', $url, null, $headers);
+            return $response['data'] ?? [];
+        } catch (Exception $e) {
+            error_log("Failed to get user games: " . $e->getMessage());
+            return [];
+        }
+    }
+    
+    public function getUserBadges($userId, $limit = 10) {
+        try {
+            $url = "https://badges.roblox.com/v1/users/$userId/badges?limit=$limit&sortOrder=Asc";
+            $response = $this->makeRequest('GET', $url);
+            return $response['data'] ?? [];
+        } catch (Exception $e) {
+            error_log("Failed to get user badges: " . $e->getMessage());
+            return [];
+        }
+    }
+    
+    public function verifyGameOwnership($userId, $gameId, $accessToken) {
+        try {
+            $games = $this->getUserGames($userId, $accessToken);
+            foreach ($games as $game) {
+                if ($game['id'] == $gameId) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception $e) {
+            error_log("Failed to verify game ownership: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    public function getGameDetails($gameId) {
+        try {
+            $response = $this->makeRequest('GET', "https://games.roblox.com/v1/games?universeIds=$gameId");
+            return $response['data'][0] ?? null;
+        } catch (Exception $e) {
+            error_log("Failed to get game details: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    public function getGameThumbnail($universeId, $size = '768x432') {
+        try {
+            $url = "https://thumbnails.roblox.com/v1/games/icons?universeIds=$universeId&returnPolicy=PlaceHolder&size={$size}&format=Png&isCircular=false";
+            $response = $this->makeRequest('GET', $url);
+            
+            if ($response && isset($response['data'][0]['imageUrl'])) {
+                return $response['data'][0]['imageUrl'];
+            }
+            return null;
+        } catch (Exception $e) {
+            error_log("Failed to get game thumbnail: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    private function makeRequestPrivate($method, $url, $data = null, $headers = []) {
+        return $this->makeRequest($method, $url, $data, $headers);
+    }
+    
     public function validateToken($accessToken) {
         try {
             $response = $this->makeRequest('GET', 'https://apis.roblox.com/oauth/v1/userinfo', null, [
@@ -264,7 +268,7 @@ class RobloxOAuth {
             return false;
         }
     }
-
+    
     public function getTokenInfo($accessToken) {
         try {
             $headers = ['Authorization: Bearer ' . $accessToken];
@@ -273,7 +277,7 @@ class RobloxOAuth {
             return false;
         }
     }
-
+    
     public function generatePKCE() {
         $codeVerifier = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
         $codeChallenge = rtrim(strtr(base64_encode(hash('sha256', $codeVerifier, true)), '+/', '-_'), '=');
@@ -286,7 +290,7 @@ class RobloxOAuth {
             'code_challenge_method' => 'S256'
         ];
     }
-
+    
     public function getAuthorizationUrlWithPKCE($state = null) {
         if (!$state) {
             $state = generate_random_string(32);
@@ -308,8 +312,9 @@ class RobloxOAuth {
         
         return 'https://apis.roblox.com/oauth/v1/authorize?' . http_build_query($params);
     }
-
+    
     public function getAccessTokenWithPKCE($code, $state = null) {
+        // Verify state parameter
         if ($state && (!isset($_SESSION['oauth_state']) || $_SESSION['oauth_state'] !== $state)) {
             throw new Exception('Invalid state parameter');
         }
