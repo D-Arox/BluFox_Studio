@@ -13,10 +13,23 @@ RewriteEngine On
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/+(.+)\.php[\s?] [NC]
 RewriteRule ^ /%1? [R=301,L]
 
-# Internal rewrite to add .php extension
+# API Routes - FIXED TO ROUTE TO API ROUTER
+# Handle API v1 routes (route to the API router)
+RewriteCond %{REQUEST_URI} ^/api/v1/(.*)$
+RewriteRule ^api/v1/(.*)$ api/v1/index.php [QSA,L]
+
+# Handle other API routes (if you have other versions)
+RewriteCond %{REQUEST_URI} ^/api/(.*)$
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/v1/
+RewriteRule ^api/(.*)$ api/index.php?route=$1 [QSA,L]
+
+# Internal rewrite to add .php extension (but skip API routes)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ $1.php [L]
 
 # Handle special directories and pages
@@ -26,13 +39,6 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{DOCUMENT_ROOT}/admin/$1.php -f
 RewriteRule ^admin/(.*)$ /admin/$1.php [L]
-
-# Handle API endpoints
-RewriteCond %{REQUEST_URI} ^/api/(.*)$
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{DOCUMENT_ROOT}/api/$1.php -f
-RewriteRule ^api/(.*)$ /api/$1.php [L]
 
 # Handle auth endpoints
 RewriteCond %{REQUEST_URI} ^/auth/(.*)$

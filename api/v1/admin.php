@@ -1,6 +1,4 @@
 <?php
-// api/v1/admin.php - Admin API Endpoints
-
 function getAdminStats() {
     require_role('moderator');
     

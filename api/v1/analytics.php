@@ -1,6 +1,4 @@
 <?php
-// api/v1/analytics.php - Analytics API Endpoints
-
 function getAnalyticsDashboard($data) {
     require_permission('view_analytics');
     

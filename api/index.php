@@ -1,657 +1,322 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
-
-require_once __DIR__ . '/../../../config/config.php';
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
-try {
-    $method = $_SERVER['REQUEST_METHOD'];
-    $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-
-    $basePath = '/api/v1';
-    if (strpos($path, $basePath) === 0) {
-        $path = substr($path, strlen($basePath));
+function handleLogin($data) {
+    $validator = new ApiValidator($data);
+    $validator->required(['username', 'password'])
+             ->min('username', 3)
+             ->min('password', 6);
+    
+    if ($validator->fails()) {
+        return ApiResponse::validationError($validator->getErrors());
     }
-
-    $path = trim($path, '/');
-    $segments = empty($path) ? [] : explode('/', $path);
-    $requestData = [];
-
-    if (in_array($method, ['POST', 'PUT', 'PATCH'])) {
-        $jsonInput = file_get_contents('php://input');
-        if (!empty($jsonInput)) {
-            $requestData = json_decode($jsonInput, true) ?? [];
-        }
-        $requestData = array_merge($_POST, $requestData);
-    } else {
-        $requestData = $_GET;
-    }
-
+    
+    // Rate limit login attempts
     $clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    $rateLimiter = new RateLimiter("api_$clientIp", API_RATE_LIMIT, API_RATE_LIMIT_WINDOW);
+    $loginLimiter = new RateLimiter("login_$clientIp", 5, 900); // 5 attempts per 15 minutes
     
-    if (!$rateLimiter->attempt()) {
-        ApiResponse::error('Rate limit exceeded', 429, [
-            'retry_after' => $rateLimiter->retryAfter(),
-            'limit' => API_RATE_LIMIT,
-            'window' => API_RATE_LIMIT_WINDOW
-        ])->send();
+    if (!$loginLimiter->attempt()) {
+        return ApiResponse::error('Too many login attempts. Please try again later.', 429);
     }
-
-    header('X-RateLimit-Limit: ' . API_RATE_LIMIT);
-    header('X-RateLimit-Remaining: ' . $rateLimiter->remaining());
-    header('X-RateLimit-Reset: ' . (time() + $rateLimiter->retryAfter()));
     
-    $response = routeRequest($method, $segments, $requestData);
-
-    if ($response instanceof ApiResponse) {
-        $response->send();
-    } else {
-        ApiResponse::success($response)->send();
-    }
-} catch (Exception $e) {
-    error_log("API Error: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
-    
-    if (DEBUG_MODE) {
-        ApiResponse::serverError($e->getMessage())->send();
-    } else {
-        ApiResponse::serverError('An unexpected error occurred')->send();
-    }
-}
-
-function routeRequest($method, $segments, $data) {
-    $endpoint = $segments[0] ?? '';
-    
-    switch ($endpoint) {
-        case '':
-            return handleApiInfo();
-            
-        case 'auth':
-            require_once __DIR__ . '/auth.php';
-            return handleAuthRoutes($method, array_slice($segments, 1), $data);
-            
-        case 'users':
-            return handleUserRoutes($method, array_slice($segments, 1), $data);
-            
-        case 'projects':
-            require_once __DIR__ . '/projects.php';
-            return handleProjectRoutes($method, array_slice($segments, 1), $data);
-            
-        case 'services':
-            require_once __DIR__ . '/services.php';
-            return handleServiceRoutes($method, array_slice($segments, 1), $data);
-            
-        case 'contact':
-            require_once __DIR__ . '/contact.php';
-            return handleContactRoutes($method, array_slice($segments, 1), $data);
-            
-        case 'analytics':
-            require_once __DIR__ . '/analytics.php';
-            return handleAnalyticsRoutes($method, array_slice($segments, 1), $data);
-            
-        case 'roblox':
-            require_once __DIR__ . '/roblox.php';
-            return handleRobloxRoutes($method, array_slice($segments, 1), $data);
-            
-        case 'upload':
-            require_once __DIR__ . '/upload.php';
-            return handleUploadRoutes($method, array_slice($segments, 1), $data);
-            
-        case 'cookie-consent':
-            require_once __DIR__ . '/cookie-consent.php';
-            return handleCookieConsentRoutes($method, array_slice($segments, 1), $data);
-            
-        case 'admin':
-            require_once __DIR__ . '/admin.php';
-            return handleAdminRoutes($method, array_slice($segments, 1), $data);
-            
-        default:
-            return ApiResponse::notFound('Endpoint not found');
+    try {
+        $userModel = new User();
+        $user = $userModel->findByUsername($data['username']);
+        
+        if (!$user || !auth()->verifyPassword($data['password'], $user['password'] ?? '')) {
+            return ApiResponse::unauthorized('Invalid credentials');
+        }
+        
+        if ($user['status'] !== 'active') {
+            return ApiResponse::forbidden('Account is not active');
+        }
+        
+        // Generate JWT token
+        $tokenPayload = [
+            'user_id' => $user['id'],
+            'username' => $user['username'],
+            'role' => $user['role']
+        ];
+        
+        $accessToken = auth()->generateJWT($tokenPayload, time() + 3600); // 1 hour
+        $refreshToken = auth()->generateJWT(['user_id' => $user['id']], time() + (30 * 24 * 3600)); // 30 days
+        
+        // Update last login
+        $userModel->updateLastLogin($user['id']);
+        
+        // Log activity
+        auth()->logActivity('login', ['ip' => $clientIp]);
+        
+        return ApiResponse::success([
+            'user' => array_intersect_key($user, array_flip(['id', 'username', 'display_name', 'email', 'avatar_url', 'role'])),
+            'access_token' => $accessToken,
+            'refresh_token' => $refreshToken,
+            'expires_in' => 3600
+        ], 'Login successful');
+        
+    } catch (Exception $e) {
+        error_log("Login error: " . $e->getMessage());
+        return ApiResponse::serverError('Login failed');
     }
 }
 
-// Add missing route handlers
-function handleAuthRoutes($method, $segments, $data) {
+function handleLogout() {
+    try {
+        auth()->logout();
+        return ApiResponse::success(null, 'Logout successful');
+    } catch (Exception $e) {
+        error_log("Logout error: " . $e->getMessage());
+        return ApiResponse::serverError('Logout failed');
+    }
+}
+
+function handleGetCurrentUser() {
+    if (!is_logged_in()) {
+        return ApiResponse::unauthorized();
+    }
+    
+    try {
+        $user = current_user();
+        $userModel = new User();
+        
+        // Get extended profile
+        $profile = $userModel->getProfile($user['id']);
+        
+        // Get notifications count
+        $unreadNotifications = count($userModel->getNotifications($user['id'], true));
+        
+        return ApiResponse::success([
+            'user' => $profile,
+            'unread_notifications' => $unreadNotifications,
+            'permissions' => auth()->getUserPermissions()
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Get current user error: " . $e->getMessage());
+        return ApiResponse::serverError('Failed to get user data');
+    }
+}
+
+function handleRefreshToken($data) {
+    $validator = new ApiValidator($data);
+    $validator->required(['refresh_token']);
+    
+    if ($validator->fails()) {
+        return ApiResponse::validationError($validator->getErrors());
+    }
+    
+    try {
+        $payload = auth()->verifyJWT($data['refresh_token']);
+        
+        if (!$payload || !isset($payload['user_id'])) {
+            return ApiResponse::unauthorized('Invalid refresh token');
+        }
+        
+        $userModel = new User();
+        $user = $userModel->find($payload['user_id']);
+        
+        if (!$user || $user['status'] !== 'active') {
+            return ApiResponse::unauthorized('User not found or inactive');
+        }
+        
+        // Generate new access token
+        $tokenPayload = [
+            'user_id' => $user['id'],
+            'username' => $user['username'],
+            'role' => $user['role']
+        ];
+        
+        $accessToken = auth()->generateJWT($tokenPayload, time() + 3600);
+        
+        return ApiResponse::success([
+            'access_token' => $accessToken,
+            'expires_in' => 3600
+        ], 'Token refreshed successfully');
+        
+    } catch (Exception $e) {
+        error_log("Refresh token error: " . $e->getMessage());
+        return ApiResponse::unauthorized('Invalid refresh token');
+    }
+}
+
+function handleRobloxAuth($method, $segments, $data) {
     $action = $segments[0] ?? '';
     
     switch ($action) {
-        case 'login':
-            if ($method !== 'POST') {
-                return ApiResponse::error('Method not allowed', 405);
-            }
-            return handleLogin($data);
-            
-        case 'logout':
-            if ($method !== 'POST') {
-                return ApiResponse::error('Method not allowed', 405);
-            }
-            return handleLogout();
-            
-        case 'me':
-            if ($method !== 'GET') {
-                return ApiResponse::error('Method not allowed', 405);
-            }
-            return handleGetCurrentUser();
-            
-        case 'refresh':
-            if ($method !== 'POST') {
-                return ApiResponse::error('Method not allowed', 405);
-            }
-            return handleRefreshToken($data);
-            
-        case 'roblox':
-            return handleRobloxAuth($method, array_slice($segments, 1), $data);
-            
+        case 'url':
+            return getRobloxAuthUrl();
+        case 'callback':
+            return handleRobloxCallback($data);
+        case 'link':
+            return linkRobloxAccount($data);
+        case 'unlink':
+            return unlinkRobloxAccount();
         default:
-            return ApiResponse::notFound('Auth endpoint not found');
+            return ApiResponse::notFound('Roblox auth endpoint not found');
     }
 }
 
-function handleProjectRoutes($method, $segments, $data) {
-    $projectId = $segments[0] ?? null;
-    $action = $segments[1] ?? null;
-    
-    switch ($method) {
-        case 'GET':
-            if ($projectId && $action === 'comments') {
-                return getProjectComments($projectId, $data);
-            } elseif ($projectId && $action === 'images') {
-                return getProjectImages($projectId);
-            } elseif ($projectId && $action === 'related') {
-                return getRelatedProjects($projectId, $data);
-            } elseif ($projectId) {
-                return getProject($projectId);
-            } else {
-                return getProjects($data);
-            }
-            
-        case 'POST':
-            if ($projectId && $action === 'like') {
-                return toggleProjectLike($projectId);
-            } elseif ($projectId && $action === 'comment') {
-                return addProjectComment($projectId, $data);
-            } elseif ($projectId && $action === 'view') {
-                return recordProjectView($projectId);
-            } elseif (!$projectId) {
-                return createProject($data);
-            }
-            return ApiResponse::error('Invalid action', 400);
-            
-        case 'PUT':
-            if ($projectId) {
-                return updateProject($projectId, $data);
-            }
-            return ApiResponse::error('Project ID required', 400);
-            
-        case 'DELETE':
-            if ($projectId) {
-                return deleteProject($projectId);
-            }
-            return ApiResponse::error('Project ID required', 400);
-            
-        default:
-            return ApiResponse::error('Method not allowed', 405);
-    }
-}
-
-function handleServiceRoutes($method, $segments, $data) {
-    $serviceId = $segments[0] ?? null;
-    $action = $segments[1] ?? null;
-    
-    switch ($method) {
-        case 'GET':
-            if ($serviceId && $action === 'packages') {
-                return getServicePackages($serviceId);
-            } elseif ($serviceId && $action === 'testimonials') {
-                return getServiceTestimonials($serviceId);
-            } elseif ($serviceId && $action === 'faqs') {
-                return getServiceFAQs($serviceId);
-            } elseif ($serviceId) {
-                return getService($serviceId);
-            } else {
-                return getServices($data);
-            }
-            
-        case 'POST':
-            if (!$serviceId) {
-                return createService($data);
-            }
-            return ApiResponse::error('Method not allowed', 405);
-            
-        case 'PUT':
-            if ($serviceId) {
-                return updateService($serviceId, $data);
-            }
-            return ApiResponse::error('Service ID required', 400);
-            
-        case 'DELETE':
-            if ($serviceId) {
-                return deleteService($serviceId);
-            }
-            return ApiResponse::error('Service ID required', 400);
-            
-        default:
-            return ApiResponse::error('Method not allowed', 405);
-    }
-}
-
-function handleContactRoutes($method, $segments, $data) {
-    $inquiryId = $segments[0] ?? null;
-    $action = $segments[1] ?? null;
-    
-    switch ($method) {
-        case 'GET':
-            if ($inquiryId && $action === 'responses') {
-                return getInquiryResponses($inquiryId);
-            } elseif ($inquiryId) {
-                return getInquiry($inquiryId);
-            } else {
-                return getInquiries($data);
-            }
-            
-        case 'POST':
-            if ($inquiryId && $action === 'respond') {
-                return respondToInquiry($inquiryId, $data);
-            } elseif (!$inquiryId) {
-                return createInquiry($data);
-            }
-            return ApiResponse::error('Invalid action', 400);
-            
-        case 'PUT':
-            if ($inquiryId) {
-                return updateInquiry($inquiryId, $data);
-            }
-            return ApiResponse::error('Inquiry ID required', 400);
-            
-        case 'DELETE':
-            if ($inquiryId) {
-                return deleteInquiry($inquiryId);
-            }
-            return ApiResponse::error('Inquiry ID required', 400);
-            
-        default:
-            return ApiResponse::error('Method not allowed', 405);
-    }
-}
-
-function handleAnalyticsRoutes($method, $segments, $data) {
-    require_permission('view_analytics');
-    
-    $type = $segments[0] ?? '';
-    
-    if ($method !== 'GET') {
-        return ApiResponse::error('Method not allowed', 405);
-    }
-    
-    switch ($type) {
-        case 'dashboard':
-            return getAnalyticsDashboard($data);
-        case 'projects':
-            return getProjectAnalytics($data);
-        case 'users':
-            return getUserAnalytics($data);
-        case 'traffic':
-            return getTrafficAnalytics($data);
-        default:
-            return getGeneralAnalytics($data);
-    }
-}
-
-function handleRobloxRoutes($method, $segments, $data) {
-    $action = $segments[0] ?? '';
-    
-    switch ($action) {
-        case 'oauth':
-            return handleRobloxOAuthRoutes($method, array_slice($segments, 1), $data);
-        case 'user':
-            return getRobloxUserInfo($data);
-        case 'games':
-            return getRobloxUserGames($data);
-        case 'verify':
-            return verifyRobloxOwnership($data);
-        default:
-            return ApiResponse::notFound('Roblox endpoint not found');
-    }
-}
-
-function handleUploadRoutes($method, $segments, $data) {
-    require_auth();
-    
-    if ($method !== 'POST') {
-        return ApiResponse::error('Method not allowed', 405);
-    }
-    
-    $type = $segments[0] ?? '';
-    
-    switch ($type) {
-        case 'avatar':
-            return uploadAvatar();
-        case 'project':
-            return uploadProjectImage($data);
-        case 'temp':
-            return uploadTempFile();
-        default:
-            return uploadGeneral($data);
-    }
-}
-
-function handleAdminRoutes($method, $segments, $data) {
-    require_role('moderator');
-    
-    $resource = $segments[0] ?? '';
-    
-    switch ($resource) {
-        case 'stats':
-            return getAdminStats();
-        case 'users':
-            return handleAdminUsers($method, array_slice($segments, 1), $data);
-        case 'projects':
-            return handleAdminProjects($method, array_slice($segments, 1), $data);
-        case 'inquiries':
-            return handleAdminInquiries($method, array_slice($segments, 1), $data);
-        case 'settings':
-            return handleAdminSettings($method, array_slice($segments, 1), $data);
-        default:
-            return ApiResponse::notFound('Admin endpoint not found');
-    }
-}
-
-function handleApiInfo() {
-    return ApiResponse::success([
-        'name' => 'BluFox Studio API',
-        'version' => API_VERSION,
-        'description' => 'RESTful API for BluFox Studio',
-        'documentation' => SITE_URL . '/docs/api',
-        'endpoints' => [
-            'auth' => 'Authentication endpoints',
-            'users' => 'User management',
-            'projects' => 'Project management',
-            'services' => 'Service information',
-            'contact' => 'Contact form submissions',
-            'analytics' => 'Analytics data',
-            'roblox' => 'Roblox integration',
-            'upload' => 'File upload endpoints',
-            'cookie-consent' => 'Cookie consent management',
-            'admin' => 'Administrative endpoints'
-        ],
-        'rate_limit' => [
-            'requests_per_hour' => API_RATE_LIMIT,
-            'window_seconds' => API_RATE_LIMIT_WINDOW
-        ],
-        'server_time' => date('c'),
-        'environment' => ENVIRONMENT
-    ], 'BluFox Studio API ' . API_VERSION);
-}
-
-function handleUserRoutes($method, $segments, $data) {
-    $userId = $segments[0] ?? null;
-    $action = $segments[1] ?? null;
-    
-    switch ($method) {
-        case 'GET':
-            if ($userId && $action === 'projects') {
-                return getUserProjects($userId, $data);
-            } elseif ($userId && $action === 'profile') {
-                return getUserProfile($userId);
-            } elseif ($userId && $action === 'activity') {
-                return getUserActivity($userId);
-            } elseif ($userId) {
-                return getUser($userId);
-            } else {
-                return getUsers($data);
-            }
-            
-        case 'POST':
-            if (!$userId) {
-                return createUser($data);
-            }
-            return ApiResponse::error('Method not allowed', 405);
-            
-        case 'PUT':
-            if ($userId && $action === 'profile') {
-                return updateUserProfile($userId, $data);
-            } elseif ($userId && $action === 'preferences') {
-                return updateUserPreferences($userId, $data);
-            } elseif ($userId) {
-                return updateUser($userId, $data);
-            }
-            return ApiResponse::error('User ID required', 400);
-            
-        case 'DELETE':
-            if ($userId) {
-                return deleteUser($userId);
-            }
-            return ApiResponse::error('User ID required', 400);
-            
-        default:
-            return ApiResponse::error('Method not allowed', 405);
-    }
-}
-
-// User-related functions
-function getUsers($data) {
-    require_permission('view_users');
-    
+function getRobloxAuthUrl() {
     try {
-        $userModel = new User();
-        $page = max(1, (int)($data['page'] ?? 1));
-        $perPage = min(50, max(1, (int)($data['per_page'] ?? 15)));
-        $search = $data['search'] ?? '';
+        $robloxOAuth = new RobloxOAuth();
+        $authUrl = $robloxOAuth->getAuthorizationUrlWithPKCE();
         
-        if (!empty($search)) {
-            $result = $userModel->searchUsers($search, $page, $perPage);
-        } else {
-            $result = $userModel->paginate($page, $perPage, ['status' => 'active'], 'created_at DESC');
-        }
-        
-        return ApiResponse::paginated($result['data'], $result['pagination'], 'Users retrieved successfully');
+        return ApiResponse::success([
+            'auth_url' => $authUrl
+        ], 'Authorization URL generated');
         
     } catch (Exception $e) {
-        error_log("Get users error: " . $e->getMessage());
-        return ApiResponse::serverError('Failed to retrieve users');
+        error_log("Roblox auth URL error: " . $e->getMessage());
+        return ApiResponse::serverError('Failed to generate auth URL');
     }
 }
 
-function getUser($userId) {
+function handleRobloxCallback($data) {
+    $validator = new ApiValidator($data);
+    $validator->required(['code']);
+    
+    if ($validator->fails()) {
+        return ApiResponse::validationError($validator->getErrors());
+    }
+    
     try {
-        $userModel = new User();
-        $user = $userModel->find($userId);
+        $robloxOAuth = new RobloxOAuth();
+        
+        // Exchange code for access token
+        $tokenData = $robloxOAuth->getAccessTokenWithPKCE($data['code'], $data['state'] ?? null);
+        
+        // Get user info
+        $userInfo = $robloxOAuth->getUserInfo($tokenData['access_token']);
+        
+        // Login or create user
+        $rememberMe = isset($data['remember_me']) && $data['remember_me'];
+        $user = auth()->login($userInfo['roblox_id'], $userInfo, $rememberMe);
         
         if (!$user) {
-            return ApiResponse::notFound('User not found');
+            return ApiResponse::serverError('Failed to login user');
         }
         
-        // Check if user can view this profile
-        if (!is_logged_in() || (current_user()['id'] !== $user['id'] && !has_role('moderator'))) {
-            // Return limited public info
-            $publicUser = [
-                'id' => $user['id'],
-                'username' => $user['username'],
-                'display_name' => $user['display_name'],
-                'avatar_url' => $user['avatar_url'],
-                'bio' => $user['bio'],
-                'created_at' => $user['created_at']
-            ];
-            return ApiResponse::success($publicUser, 'Public user profile retrieved');
-        }
+        // Generate JWT tokens
+        $tokenPayload = [
+            'user_id' => $user['id'],
+            'username' => $user['username'],
+            'role' => $user['role']
+        ];
         
-        // Return full profile for own profile or admins
-        $profile = $userModel->getProfile($userId);
-        return ApiResponse::success($profile, 'User profile retrieved successfully');
+        $accessToken = auth()->generateJWT($tokenPayload, time() + 3600);
+        $refreshToken = auth()->generateJWT(['user_id' => $user['id']], time() + (30 * 24 * 3600));
+        
+        return ApiResponse::success([
+            'user' => array_intersect_key($user, array_flip(['id', 'roblox_id', 'username', 'display_name', 'avatar_url', 'role'])),
+            'access_token' => $accessToken,
+            'refresh_token' => $refreshToken,
+            'expires_in' => 3600
+        ], 'Roblox login successful');
         
     } catch (Exception $e) {
-        error_log("Get user error: " . $e->getMessage());
-        return ApiResponse::serverError('Failed to retrieve user');
+        error_log("Roblox callback error: " . $e->getMessage());
+        return ApiResponse::serverError('Roblox authentication failed');
     }
 }
 
-function getUserProjects($userId, $data) {
-    try {
-        $userModel = new User();
-        $user = $userModel->find($userId);
-        
-        if (!$user) {
-            return ApiResponse::notFound('User not found');
-        }
-        
-        $limit = min(50, max(1, (int)($data['limit'] ?? 10)));
-        $projects = $userModel->getProjects($userId, $limit);
-        
-        return ApiResponse::success($projects, 'User projects retrieved successfully');
-        
-    } catch (Exception $e) {
-        error_log("Get user projects error: " . $e->getMessage());
-        return ApiResponse::serverError('Failed to retrieve user projects');
-    }
-}
-
-function getUserProfile($userId) {
-    try {
-        $userModel = new User();
-        $profile = $userModel->getProfile($userId);
-        
-        if (!$profile) {
-            return ApiResponse::notFound('User profile not found');
-        }
-        
-        return ApiResponse::success($profile, 'User profile retrieved successfully');
-        
-    } catch (Exception $e) {
-        error_log("Get user profile error: " . $e->getMessage());
-        return ApiResponse::serverError('Failed to retrieve user profile');
-    }
-}
-
-function updateUserProfile($userId, $data) {
+function linkRobloxAccount($data) {
     require_auth();
     
-    // Check if user can update this profile
-    if (current_user()['id'] !== (int)$userId && !has_role('admin')) {
-        return ApiResponse::forbidden('You can only update your own profile');
+    $validator = new ApiValidator($data);
+    $validator->required(['code']);
+    
+    if ($validator->fails()) {
+        return ApiResponse::validationError($validator->getErrors());
     }
     
     try {
-        $userModel = new User();
-        $result = $userModel->updateProfile($userId, $data);
+        $user = current_user();
+        $robloxOAuth = new RobloxOAuth();
         
-        if ($result) {
-            return ApiResponse::success(['profile_updated' => true], 'Profile updated successfully');
-        } else {
-            return ApiResponse::serverError('Failed to update profile');
+        // Exchange code for access token
+        $tokenData = $robloxOAuth->getAccessTokenWithPKCE($data['code'], $data['state'] ?? null);
+        
+        // Get user info
+        $userInfo = $robloxOAuth->getUserInfo($tokenData['access_token']);
+        
+        // Check if Roblox account is already linked
+        $userModel = new User();
+        $existingUser = $userModel->findByRobloxId($userInfo['roblox_id']);
+        
+        if ($existingUser && $existingUser['id'] !== $user['id']) {
+            return ApiResponse::error('This Roblox account is already linked to another user');
         }
         
+        // Update user with Roblox info
+        $updateData = [
+            'roblox_id' => $userInfo['roblox_id'],
+            'avatar_url' => $userInfo['avatar_url'] ?? $user['avatar_url']
+        ];
+        
+        $updatedUser = $userModel->update($user['id'], $updateData);
+        
+        // Log activity
+        auth()->logActivity('roblox_account_linked', ['roblox_id' => $userInfo['roblox_id']]);
+        
+        return ApiResponse::success([
+            'user' => $updatedUser,
+            'roblox_info' => $userInfo
+        ], 'Roblox account linked successfully');
+        
     } catch (Exception $e) {
-        error_log("Update user profile error: " . $e->getMessage());
-        return ApiResponse::serverError('Failed to update profile');
+        error_log("Link Roblox account error: " . $e->getMessage());
+        return ApiResponse::serverError('Failed to link Roblox account');
     }
 }
 
-function updateUserPreferences($userId, $data) {
+function unlinkRobloxAccount() {
     require_auth();
     
-    // Check if user can update preferences
-    if (current_user()['id'] !== (int)$userId) {
-        return ApiResponse::forbidden('You can only update your own preferences');
-    }
-    
     try {
+        $user = current_user();
         $userModel = new User();
-        $result = $userModel->updatePreferences($userId, $data);
         
-        if ($result) {
-            return ApiResponse::success(['preferences_updated' => true], 'Preferences updated successfully');
-        } else {
-            return ApiResponse::serverError('Failed to update preferences');
-        }
+        // Remove Roblox ID
+        $userModel->update($user['id'], ['roblox_id' => null]);
+        
+        // Log activity
+        auth()->logActivity('roblox_account_unlinked');
+        
+        return ApiResponse::success(null, 'Roblox account unlinked successfully');
         
     } catch (Exception $e) {
-        error_log("Update user preferences error: " . $e->getMessage());
-        return ApiResponse::serverError('Failed to update preferences');
+        error_log("Unlink Roblox account error: " . $e->getMessage());
+        return ApiResponse::serverError('Failed to unlink Roblox account');
     }
 }
 
-function createUser($data) {
-    // This would typically be handled by the registration process
-    return ApiResponse::error('User registration should be done through the auth endpoints', 400);
-}
-
-function updateUser($userId, $data) {
-    require_auth();
+// Helper function to validate API token
+function validateApiToken() {
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
     
-    // Only allow users to update their own basic info, or admins to update anyone
-    if (current_user()['id'] !== (int)$userId && !has_role('admin')) {
-        return ApiResponse::forbidden('You can only update your own information');
+    if (!$authHeader || !preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        return false;
     }
     
-    try {
-        $userModel = new User();
-        $allowedFields = ['display_name', 'bio'];
-        
-        // Admins can update more fields
-        if (has_role('admin')) {
-            $allowedFields = array_merge($allowedFields, ['email', 'status']);
-        }
-        
-        $updateData = array_intersect_key($data, array_flip($allowedFields));
-        
-        if (empty($updateData)) {
-            return ApiResponse::error('No valid fields to update', 400);
-        }
-        
-        $result = $userModel->update($userId, $updateData);
-        
-        if ($result) {
-            return ApiResponse::success($result, 'User updated successfully');
-        } else {
-            return ApiResponse::serverError('Failed to update user');
-        }
-        
-    } catch (Exception $e) {
-        error_log("Update user error: " . $e->getMessage());
-        return ApiResponse::serverError('Failed to update user');
-    }
-}
-
-function deleteUser($userId) {
-    require_auth();
+    $token = $matches[1];
+    $payload = auth()->verifyJWT($token);
     
-    // Only allow users to delete their own account, or admins to delete anyone
-    if (current_user()['id'] !== (int)$userId && !has_role('admin')) {
-        return ApiResponse::forbidden('You can only delete your own account');
+    if (!$payload || !isset($payload['user_id'])) {
+        return false;
     }
     
-    try {
-        $userModel = new User();
-        $user = $userModel->find($userId);
-        
-        if (!$user) {
-            return ApiResponse::notFound('User not found');
-        }
-        
-        // Prevent deletion of superadmin users
-        if ($user['role'] === 'superadmin' && !has_role('superadmin')) {
-            return ApiResponse::forbidden('Cannot delete superadmin users');
-        }
-        
-        $result = $userModel->delete($userId);
-        
-        if ($result) {
-            // If user deleted their own account, logout
-            if (current_user()['id'] === (int)$userId) {
-                auth()->logout();
-            }
-            
-            return ApiResponse::success(null, 'User deleted successfully');
-        } else {
-            return ApiResponse::serverError('Failed to delete user');
-        }
-        
-    } catch (Exception $e) {
-        error_log("Delete user error: " . $e->getMessage());
-        return ApiResponse::serverError('Failed to delete user');
+    // Set user session from token
+    $userModel = new User();
+    $user = $userModel->find($payload['user_id']);
+    
+    if (!$user || $user['status'] !== 'active') {
+        return false;
     }
+    
+    // Set session data
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['user_role'] = $user['role'];
+    $_SESSION['logged_in'] = true;
+    $_SESSION['login_time'] = time();
+    
+    return true;
 }

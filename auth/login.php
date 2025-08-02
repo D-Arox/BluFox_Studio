@@ -24,12 +24,13 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Get Roblox OAuth URL from API
+// Get Roblox OAuth URL from API - FIXED ENDPOINT
 $auth_url = '';
+$debug_info = '';
 try {
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL => SITE_URL . '/api/v1/roblox/authorize',
+        CURLOPT_URL => SITE_URL . '/api/v1/auth/roblox/url', // CORRECT: Uses 'url' action
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => json_encode([]),
         CURLOPT_HTTPHEADER => [
@@ -43,15 +44,23 @@ try {
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
     
-    if ($response && $httpCode === 200) {
+    if ($curlError) {
+        $debug_info = "cURL Error: " . $curlError;
+    } elseif ($response && $httpCode === 200) {
         $data = json_decode($response, true);
-        if ($data && $data['success'] && isset($data['data']['authorization_url'])) {
-            $auth_url = $data['data']['authorization_url'];
+        if ($data && $data['success'] && isset($data['data']['auth_url'])) {
+            $auth_url = $data['data']['auth_url'];
+        } else {
+            $debug_info = "API Response: " . ($data['message'] ?? 'Unknown error') . " (HTTP $httpCode)";
         }
+    } else {
+        $debug_info = "HTTP Error: $httpCode - " . ($response ?: 'No response body');
     }
 } catch (Exception $e) {
+    $debug_info = 'Exception: ' . $e->getMessage();
     error_log('Failed to get auth URL: ' . $e->getMessage());
 }
 
@@ -106,7 +115,11 @@ $page_description = "Login to BluFox Studio with your Roblox account to access e
 
             <?php if (empty($auth_url)): ?>
                 <div class="debug-info">
-                    <strong>Debug Info:</strong> Unable to connect to authentication service. Please try again later or contact support if this persists.
+                    <strong>Debug Info:</strong> Unable to connect to authentication service.<br>
+                    <?php if (!empty($debug_info)): ?>
+                        <small>Details: <?php echo htmlspecialchars($debug_info); ?></small><br>
+                    <?php endif; ?>
+                    Please try again later or contact support if this persists.
                 </div>
             <?php endif; ?>
 
@@ -126,6 +139,9 @@ $page_description = "Login to BluFox Studio with your Roblox account to access e
             </div>
         </div>
     </div>
+
+    <!-- CSRF Token for JavaScript -->
+    <meta name="csrf-token" content="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
 
     <!-- JavaScript -->
     <script src="/assets/js/auth.js"></script>

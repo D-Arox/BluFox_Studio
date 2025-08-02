@@ -19,13 +19,15 @@ blufox-studio.com/
 │   │
 │   ├ api/
 │   │   ├ v1/
+│   │   │   ├ admin.php
 │   │   │   ├ analytics.php
 │   │   │   ├ auth.php
 │   │   │   ├ contact.php
 │   │   │   ├ cookie-consent.php
 │   │   │   ├ projects.php
 │   │   │   ├ roblox.php
-│   │   │   └ services.php
+│   │   │   ├ services.php
+│   │   │   └ upload.php
 │   │   │   
 │   │   ├ index.php
 │   │   └ .htaccess

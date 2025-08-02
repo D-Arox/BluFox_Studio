@@ -1,6 +1,4 @@
 <?php
-// api/v1/auth.php - Authentication API Endpoints
-
 function handleLogin($data) {
     $validator = new ApiValidator($data);
     $validator->required(['username', 'password'])
@@ -321,25 +319,4 @@ function validateApiToken() {
     $_SESSION['login_time'] = time();
     
     return true;
-}
-
-// Enhanced require functions for API
-function require_auth() {
-    if (!is_logged_in() && !validateApiToken()) {
-        ApiResponse::unauthorized('Authentication required')->send();
-    }
-}
-
-function require_role($role) {
-    require_auth();
-    if (!has_role($role)) {
-        ApiResponse::forbidden('Insufficient permissions')->send();
-    }
-}
-
-function require_permission($permission) {
-    require_auth();
-    if (!has_permission($permission)) {
-        ApiResponse::forbidden('Insufficient permissions')->send();
-    }
 }

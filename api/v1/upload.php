@@ -1,6 +1,4 @@
 <?php
-// api/v1/upload.php - Upload API Endpoints
-
 function uploadAvatar() {
     require_auth();
     

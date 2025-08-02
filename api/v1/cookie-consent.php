@@ -1,7 +1,4 @@
 <?php
-// api/v1/cookie-consent.php - Cookie Consent API Endpoints
-
-// Handle cookie consent preferences
 function handleCookieConsent($method, $data) {
     switch ($method) {
         case 'GET':
