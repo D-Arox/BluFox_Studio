@@ -138,8 +138,37 @@ blufox-studio.com/
 │   ├ robots.txt
 │   └ sitemap.xml
 │   
-└ config/
-    ├ database.php
-    ├ config.php
-    ├ auth.php
-    └ app.php
+├ cache/
+│   └ .htaccess
+│
+├ config/
+│   ├ database.php
+│   ├ config.php
+│   ├ auth.php
+│   └ app.php
+│
+├ database/
+│   ├ migration/
+│   │   ├ 001_create_user.sql
+│   │   ├ 002_create_projects.sql
+│   │   ├ 003_create_services.sql
+│   │   ├ 004_create_analytics.sql
+│   │   └ 005_create_contact_inquiries.sql
+│   │
+│   └ seeders/
+│       ├ projects.sql
+│       ├ services.sql
+│       └ users.sql
+│
+├ docs/
+│   ├ API.md
+│   ├ ARCHITECTURE.md
+│   └ DEPLOYMENT.md
+│
+├ logs/
+│   └ .htaccess
+│
+├ PHPMailer/
+├ .env
+├ composer.json
+└ package.json
