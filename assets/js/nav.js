@@ -281,17 +281,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 600);
     }
 
-    // Add intersection observer for scroll animations
-    const observerOptions = {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
-    };
-
-    // Observe navigation elements for scroll animations
-    document.querySelectorAll('.nav-link, .btn, .social-link').forEach(el => {
-        observer.observe(el);
-    });
-
     // Performance optimization for resize events
     let resizeTimeout;
     window.addEventListener('resize', () => {
