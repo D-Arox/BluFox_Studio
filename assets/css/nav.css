@@ -18,7 +18,7 @@
     border-bottom-color: var(--border-accent);
 }
 
-.container {
+.nav-container {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 var(--space-6);

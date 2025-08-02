@@ -78,6 +78,7 @@
 }
 
 .security-note {
+    margin-top: var(--space-4);
     font-size: var(--font-size-xs);
     text-align: center;
     padding: var(--space-2);
