@@ -1,4 +1,66 @@
 blufox-studio.com/
 ├ public_html/
+│   ├ api
+│   │   ├ v1/
+│   │   │   ├ auth.php
+│   │   │   ...
+│   │   │
+│   │   ├ index.php
+│   │   └ .htaccess
+│   │
+│   ├ assets/
+│   │   ├ css/
+│   │   │   ├ components/
+│   │   │   ├ pages/
+│   │   │   └ global.css
+│   │   │
+│   │   ├ images/
+│   │   │   ├ icons/
+│   │   │   ├ images/
+│   │   │   └ logos/
+│   │   │
+│   │   └ js/
+│   │       ├ components/
+│   │       ├ pages/
+│   │       └ main.js
+│   │
+│   ├ classes/
+│   │   ├ components/
+│   │   ├ pages/
+│   │   └ MainClass.php
+│   │
+│   ├ components/
+│   │   ├ global/
+│   │   │   ├ footer.php
+│   │   │   ├ head.php
+│   │   │   ├ header.php
+│   │   │   └ nav.php
+│   │   │
+│   │   └ sections/
+│   │       ├ hero-start-page.php
+│   │       └ hero-vault-page.php
+│   │
+│   ├ models/
+│   │   ├ components/
+│   │   ├ pages/
+│   │   └ BaseModel.php
+│   │
+│   ├ pages/
+│   │   ├ admin/
+│   │   │   └ index.php
+│   │   │
+│   │   ├ auth/
+│   │   │   ├ login.php
+│   │   │   └ logout.php
+│   │   │
+│   │   └ dashboard/
+│   │       └ index.php
+│   │
+│   └ index.php
+│
 ├ config/
+│   ├ .env
+│   ├ config.php
+│   └ database.php
+│   
 └ PHPMailer/

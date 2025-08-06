@@ -1,0 +1,29 @@
+{
+	"enableStatusBarItem": true,
+	"enableQuickPick": true,
+	"uploadOnSave": true,
+	"autoDelete": true,
+	"checkGitignore": false,
+	"activeTargets": [
+		"BluFox_FTP"
+	],
+	"concurrency": 5,
+	"ignore": [
+		".git/**/*",
+		".vscode/**/*"
+	],
+	"include": [],
+	"targets": [
+		{
+			"name": "BluFox_FTP",
+			"type": "ftp",
+			"host": "82.25.96.51",
+			"port": 21,
+			"user": "u721549786.FTPBluFox",
+			"password": "71BGJ7-0cX[+",
+			"dir": "/",
+			"baseDir": "/",
+			"transferDataType": "binary"
+		}
+	]
+}
