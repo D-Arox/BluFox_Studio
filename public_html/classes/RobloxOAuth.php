@@ -1,20 +1,22 @@
 <?php
 require_once __DIR__ . '/../models/BaseModel.php';
+require_once __DIR__ . '/RememberMe.php';
 
 class RobloxOAuth {
     private $db;
     private $clientId;
     private $clientSecret;
     private $redirectUri;
+    private $rememberMe;
     
     public function __construct() {
         $this->db = Database::getInstance();
         $this->clientId = ROBLOX_CLIENT_ID;
         $this->clientSecret = ROBLOX_CLIENT_SECRET;
         $this->redirectUri = ROBLOX_REDIRECT_URI;
+        $this->rememberMe = new RememberMe();
     }
     
-    // Generate OAuth authorization URL
     public function getAuthorizationUrl($scopes = ['openid', 'profile'], $prompt = 'consent+select_account') {
         $state = $this->generateState();
         
@@ -24,26 +26,20 @@ class RobloxOAuth {
             'response_type' => 'code',
             'scope' => implode(' ', $scopes),
             'state' => $state
-            // Note: prompt is handled separately to avoid URL encoding the + character
         ];
         
-        // Store state in database for security
         $this->storeState($state);
         
-        // Build URL manually to preserve the + character in prompt parameter
         $baseUrl = ROBLOX_OAUTH_URL . '?' . http_build_query($params);
         
-        // Add prompt parameter manually to avoid URL encoding the + character
         if ($prompt) {
-            $baseUrl .= '&prompt=' . $prompt; // Don't urlencode this!
+            $baseUrl .= '&prompt=' . $prompt;
         }
         
         return $baseUrl;
     }
     
-    // Exchange authorization code for access token
     public function exchangeCodeForToken($code, $state) {
-        // Verify state parameter
         if (!$this->verifyState($state)) {
             throw new Exception('Invalid state parameter');
         }
@@ -59,7 +55,7 @@ class RobloxOAuth {
         logMessage('debug', 'Token exchange request', [
             'client_id' => $this->clientId,
             'redirect_uri' => $this->redirectUri,
-            'code' => substr($code, 0, 20) . '...' // Log partial code for debugging
+            'code' => substr($code, 0, 20) . '...'
         ]);
         
         $ch = curl_init();
@@ -103,7 +99,6 @@ class RobloxOAuth {
                 'response' => $response
             ]);
             
-            // Try to parse error response
             $errorData = json_decode($response, true);
             $errorMessage = 'HTTP ' . $httpCode;
             
@@ -138,7 +133,6 @@ class RobloxOAuth {
         return $tokenData;
     }
     
-    // Get user information from Roblox
     public function getUserInfo($accessToken) {
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -173,7 +167,6 @@ class RobloxOAuth {
         return $userInfo;
     }
     
-    // Get additional user details from Roblox API
     public function getUserDetails($userId) {
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -197,7 +190,6 @@ class RobloxOAuth {
         return null;
     }
     
-    // Get user avatar
     public function getUserAvatar($userId, $size = '180x180', $format = 'png') {
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -224,20 +216,13 @@ class RobloxOAuth {
         return null;
     }
     
-    // Process OAuth callback and create/update user
-    public function processCallback($code, $state) {
+    public function processCallback($code, $state, $rememberMe = false) {
         try {
-            // Exchange code for token
             $tokenData = $this->exchangeCodeForToken($code, $state);
-            
-            // Get user info
             $userInfo = $this->getUserInfo($tokenData['access_token']);
-            
-            // Get additional user details
             $userDetails = $this->getUserDetails($userInfo['sub']);
             $avatarUrl = $this->getUserAvatar($userInfo['sub']);
             
-            // Create or update user
             $userModel = new User();
             $user = $userModel->findByRobloxId($userInfo['sub']);
             
@@ -251,24 +236,30 @@ class RobloxOAuth {
             ];
             
             if ($user) {
-                // Update existing user
                 $userModel->update($user['id'], $userData);
                 $userId = $user['id'];
             } else {
-                // Create new user
                 $userData['unique_id'] = (new MainClass())->generateUniqueId();
                 $userId = $userModel->create($userData);
             }
             
-            // Store user in session
             $_SESSION['user_id'] = $userId;
             $_SESSION['roblox_id'] = $userInfo['sub'];
             $_SESSION['username'] = $userData['username'];
             
+            if ($rememberMe) {
+                $this->rememberMe->createToken($userId);
+                logMessage('info', 'Remember me token created for user', [
+                    'user_id' => $userId,
+                    'username' => $userData['username']
+                ]);
+            }
+            
             logMessage('info', 'User logged in via Roblox OAuth', [
                 'user_id' => $userId,
                 'roblox_id' => $userInfo['sub'],
-                'username' => $userData['username']
+                'username' => $userData['username'],
+                'remember_me' => $rememberMe
             ]);
             
             return $userId;
@@ -279,12 +270,22 @@ class RobloxOAuth {
         }
     }
     
-    // Generate secure state parameter
+    public function checkRememberMe() {
+        return $this->rememberMe->validateToken();
+    }
+    
+    public function getRememberMeSession($userId) {
+        return $this->rememberMe->getUserTokens($userId);
+    }
+
+    public function revokeRememberMeToken($tokenId) {
+        return $this->rememberMe->revokeToken($tokenId);
+    }
+
     private function generateState() {
         return bin2hex(random_bytes(32));
     }
     
-    // Store state in database
     private function storeState($state) {
         $expiresAt = date('Y-m-d H:i:s', time() + 600); // 10 minutes
         
@@ -300,7 +301,6 @@ class RobloxOAuth {
         );
     }
     
-    // Verify state parameter
     private function verifyState($state) {
         $storedState = $this->db->fetchOne(
             "SELECT * FROM oauth_states WHERE state = ? AND expires_at > NOW()",
@@ -311,7 +311,6 @@ class RobloxOAuth {
             return false;
         }
         
-        // Delete used state
         $this->db->delete(
             "DELETE FROM oauth_states WHERE id = ?",
             [$storedState['id']]
@@ -320,34 +319,28 @@ class RobloxOAuth {
         return true;
     }
     
-    // Method to get authorization URL with custom prompt parameter
     public function getAuthorizationUrlWithPrompt($scopes = ['openid', 'profile'], $customPrompt = null) {
-        // Default prompt that works with Roblox OAuth
         $defaultPrompt = 'consent+select_account';
-        
-        // Allow customization for future authorization needs
         $prompt = $customPrompt ?? $defaultPrompt;
         
         return $this->getAuthorizationUrl($scopes, $prompt);
     }
     
-    // Method to get different authorization URLs based on required permissions
     public function getAuthorizationUrlForPermissions($permissions = ['basic']) {
         $scopes = ['openid', 'profile'];
         $prompt = 'consent+select_account';
         
-        // Future: Add different scopes based on permissions needed
         switch (implode(',', $permissions)) {
             case 'basic':
                 $scopes = ['openid', 'profile'];
                 break;
             case 'games':
-                $scopes = ['openid', 'profile']; // Add game-specific scopes when available
-                $prompt = 'consent+select_account'; // May need different prompt for game access
+                $scopes = ['openid', 'profile'];
+                $prompt = 'consent+select_account';
                 break;
             case 'admin':
-                $scopes = ['openid', 'profile']; // Add admin scopes when available
-                $prompt = 'consent+select_account'; // May need different prompt for admin access
+                $scopes = ['openid', 'profile'];
+                $prompt = 'consent+select_account';
                 break;
             default:
                 $scopes = ['openid', 'profile'];
@@ -365,7 +358,6 @@ class RobloxOAuth {
         return $this->initiateGameVerification($userId, $gameId);
     }
     
-    // Initiate game verification process
     private function initiateGameVerification($userId, $gameId) {
         $mainClass = new MainClass();
         $verificationToken = $mainClass->validateGameOwnership($userId, $gameId);
@@ -376,7 +368,6 @@ class RobloxOAuth {
         ];
     }
     
-    // Verify game ownership token
     public function completeGameVerification($userId, $gameId) {
         $userGame = new UserGame();
         $game = $userGame->findByGameId($gameId, $userId);
@@ -385,11 +376,9 @@ class RobloxOAuth {
             throw new Exception('Game verification not initiated');
         }
         
-        // Call Roblox API to check if verification token exists in game
         $verified = $this->checkVerificationTokenInGame($gameId, $game['verification_token']);
         
         if ($verified) {
-            // Get game details from Roblox
             $gameDetails = $this->getGameDetails($gameId);
             
             $userGame->update($game['id'], [
@@ -405,7 +394,6 @@ class RobloxOAuth {
         return false;
     }
     
-    // Check if verification token exists in game (mock implementation)
     private function checkVerificationTokenInGame($gameId, $token) {
         // In a real implementation, this would need to:
         // 1. Use Roblox's Open Cloud API to check game contents
@@ -417,11 +405,9 @@ class RobloxOAuth {
             'token' => $token
         ]);
         
-        // This is a placeholder - in production you'd implement proper verification
         return true;
     }
     
-    // Get game details from Roblox
     private function getGameDetails($gameId) {
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -448,15 +434,22 @@ class RobloxOAuth {
         return ['name' => 'Unknown Game'];
     }
     
-    // Logout user
-    public function logout() {
-        // Clear session
+    public function logout($revokeRememberMe = true) {
+        $userId = $_SESSION['user_id'] ?? null;
+
+        if ($revokeRememberMe && $userId) {
+            $this->rememberMe->revokeAllUserTokens($userId);
+        }
+
+        $this->rememberMe->deleteCookie();
+
         session_destroy();
-        
-        // Start new session
         session_start();
-        
-        logMessage('info', 'User logged out');
+
+        logMessage('info', 'User logged out', [
+            'user_id' => $userId,
+            'revoked_remember_me' => $revokeRememberMe
+        ]);
     }
 }
 ?>

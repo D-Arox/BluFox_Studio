@@ -1,4 +1,5 @@
 <?php
+// Fixed public_html/pages/auth/login.php
 require_once __DIR__ . '/../../classes/MainClass.php';
 require_once __DIR__ . '/../../classes/RobloxOAuth.php';
 
@@ -10,11 +11,18 @@ if ($mainClass->isAuthenticated()) {
 }
 
 $robloxOAuth = new RobloxOAuth();
-$authUrl = $robloxOAuth->getAuthorizationUrl(['openid', 'profile'], 'consent+select_account');
 
+// Handle OAuth callback
 if (isset($_GET['code']) && isset($_GET['state'])) {
     try {
-        $userId = $robloxOAuth->processCallback($_GET['code'], $_GET['state']);
+        // Check if remember me was requested from session storage
+        $rememberMe = isset($_SESSION['remember_me_requested']) && $_SESSION['remember_me_requested'] === true;
+        
+        $userId = $robloxOAuth->processCallback($_GET['code'], $_GET['state'], $rememberMe);
+        
+        // Clean up the remember me session flag
+        unset($_SESSION['remember_me_requested']);
+        
         $redirectUrl = $_SESSION['intended_url'] ?? '/dashboard';
         unset($_SESSION['intended_url']);
         
@@ -25,6 +33,16 @@ if (isset($_GET['code']) && isset($_GET['state'])) {
         $error = $e->getMessage();
         logMessage('error', 'Login failed: ' . $error);
     }
+}
+
+// Handle remember me preference storage
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'set_remember_me') {
+    $_SESSION['remember_me_requested'] = isset($_POST['remember_me']) && $_POST['remember_me'] === '1';
+    
+    // Generate OAuth URL and redirect
+    $authUrl = $robloxOAuth->getAuthorizationUrl(['openid', 'profile'], 'consent+select_account');
+    header('Location: ' . $authUrl);
+    exit;
 }
 
 $pageTitle = 'Login';
@@ -76,10 +94,34 @@ $pageKeywords = 'BluFox Studio login, Roblox OAuth, developer tools, Vault DataS
                     </div>
                     
                     <div class="login-form">
-                        <a href="<?php echo htmlspecialchars($authUrl); ?>" class="btn btn-roblox btn-large">
-                            <i class="icon-roblox"></i>
-                            Login with Roblox
-                        </a>
+                        <form id="login-form" method="POST" action="">
+                            <input type="hidden" name="action" value="set_remember_me">
+                            
+                            <div class="remember-me-section">
+                                <div class="checkbox-group">
+                                    <label class="remember-me-label">
+                                        <input type="checkbox" name="remember_me" id="remember_me" value="1">
+                                        <span class="checkmark"></span>
+                                        Remember me for 30 days
+                                    </label>
+                                </div>
+                                
+                                <div class="security-warning">
+                                    <div class="warning-icon">
+                                        <i class="icon-shield"></i>
+                                    </div>
+                                    <div class="warning-content">
+                                        <strong>Security Notice:</strong>
+                                        <p>Only enable "Remember me" on your personal devices. Never use this option on public or shared computers for your account security.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-roblox btn-large">
+                                <i class="icon-roblox"></i>
+                                Login with Roblox
+                            </button>
+                        </form>
                         
                         <div class="login-info">
                             <p><small>
@@ -99,6 +141,7 @@ $pageKeywords = 'BluFox Studio login, Roblox OAuth, developer tools, Vault DataS
                         <li>Your Roblox password is never shared with us</li>
                         <li>We only access your public profile information</li>
                         <li>EU GDPR compliant data handling</li>
+                        <li>Remember me tokens are encrypted and expire automatically</li>
                     </ul>
                 </div>
             </div>
@@ -131,6 +174,7 @@ $pageKeywords = 'BluFox Studio login, Roblox OAuth, developer tools, Vault DataS
     </div>
     
     <script>
+        // Cookie consent handling
         document.addEventListener('DOMContentLoaded', function() {
             const consent = localStorage.getItem('cookie_consent');
             if (!consent) {
@@ -166,16 +210,124 @@ $pageKeywords = 'BluFox Studio login, Roblox OAuth, developer tools, Vault DataS
         
         function loadOptionalResources(consent) {
             if (consent.fonts) {
-                // Load Google Fonts
                 const link = document.createElement('link');
                 link.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap';
                 link.rel = 'stylesheet';
                 document.head.appendChild(link);
             } else {
-                // Use fallback system fonts
                 document.body.classList.add('system-fonts');
             }
         }
     </script>
+    
+    <style>
+        /* Enhanced Login Form Styles */
+        .remember-me-section {
+            margin-bottom: var(--space-6);
+            padding: var(--space-4);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+        }
+        
+        .remember-me-label {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            font-size: var(--font-size-base);
+            font-weight: 500;
+            color: var(--text-primary);
+            cursor: pointer;
+            margin-bottom: var(--space-4);
+        }
+        
+        .security-warning {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-3);
+            padding: var(--space-3);
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: var(--radius-md);
+        }
+        
+        .warning-icon {
+            color: var(--warning-color);
+            font-size: var(--font-size-lg);
+            flex-shrink: 0;
+        }
+        
+        .warning-content {
+            flex: 1;
+        }
+        
+        .warning-content strong {
+            display: block;
+            color: var(--warning-color);
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            margin-bottom: var(--space-1);
+        }
+        
+        .warning-content p {
+            font-size: var(--font-size-xs);
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin: 0;
+        }
+        
+        /* Custom checkbox styling */
+        .remember-me-label input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+        
+        .checkmark {
+            position: relative;
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            background: var(--bg-glass);
+            border: 2px solid var(--border-primary);
+            border-radius: var(--radius-sm);
+            transition: all var(--transition-fast);
+        }
+        
+        .remember-me-label input[type="checkbox"]:checked + .checkmark {
+            background: var(--primary-cyan);
+            border-color: var(--primary-cyan);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+        }
+        
+        .remember-me-label input[type="checkbox"]:checked + .checkmark::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 480px) {
+            .security-warning {
+                flex-direction: column;
+                gap: var(--space-2);
+            }
+            
+            .warning-icon {
+                align-self: flex-start;
+            }
+            
+            .remember-me-section {
+                padding: var(--space-3);
+            }
+        }
+    </style>
 </body>
 </html>

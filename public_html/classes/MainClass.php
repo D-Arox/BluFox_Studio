@@ -1,13 +1,16 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/RememberMe.php';
 
 class MainClass {
     private $db;
     private $currentUser;
+    private $rememberMe;
 
     public function __construct() {
         $this->db = Database::getInstance();
+        $this->rememberMe = new RememberMe();
         $this->loadCurrentUser();
     }
 
@@ -17,6 +20,32 @@ class MainClass {
                 "SELECT * FROM users WHERE id = ? AND is_active = 1",
                 [$_SESSION['user_id']]
             );
+        }
+
+        if (!$this->currentUser) {
+            $rememberMeData = $this->rememberMe->validateToken();
+            if ($rememberMeData) {
+                $this->currentUser = $this->db->fetchOne(
+                    "SELECT * FROM users WHERE id = ? AND is_active = 1",
+                    [$rememberMeData['user_id']]
+                );
+                
+                if ($this->currentUser) {
+                    $_SESSION['user_id'] = $this->currentUser['id'];
+                    $_SESSION['roblox_id'] = $this->currentUser['roblox_id'];
+                    $_SESSION['username'] = $this->currentUser['username'];
+                    
+                    $this->db->update(
+                        "UPDATE users SET last_login = NOW() WHERE id = ?",
+                        [$this->currentUser['id']]
+                    );
+                    
+                    logMessage('info', 'User session restored from remember me token', [
+                        'user_id' => $this->currentUser['id'],
+                        'username' => $this->currentUser['username']
+                    ]);
+                }
+            }
         }
     }
 
@@ -32,6 +61,62 @@ class MainClass {
         return $this->isAuthenticated() &&
               ($this->currentUser['roblox_id'] == '250751329' || 
                $this->currentUser['email'] == 'social@blufox-studio.com');
+    }
+
+    public function getUserRememberMeSessions() {
+        if (!$this->isAuthenticated()) {
+            return [];
+        }
+
+        return $this->rememberMe->getUserTokens($this->currentUser['id']);
+    }
+
+    public function revokeRememberMeSession($tokenId) {
+        if (!$this->isAuthenticated()) {
+            return false;
+        }
+        
+        $token = $this->db->fetchOne(
+            "SELECT id FROM remember_me_tokens WHERE id = ? AND user_id = ?",
+            [$tokenId, $this->currentUser['id']]
+        );
+        
+        if ($token) {
+            return $this->rememberMe->revokeToken($tokenId);
+        }
+        
+        return false;
+    }
+
+     public function revokeAllOtherRememberMeSessions() {
+        if (!$this->isAuthenticated()) {
+            return false;
+        }
+        
+        $currentSelector = null;
+        if (isset($_COOKIE['remember_me'])) {
+            $parts = explode(':', $_COOKIE['remember_me'], 2);
+            if (count($parts) === 2) {
+                $currentSelector = $parts[0];
+            }
+        }
+        
+        if ($currentSelector) {
+            $this->db->update(
+                "UPDATE remember_me_tokens SET is_active = 0 
+                 WHERE user_id = ? AND token_selector != ?",
+                [$this->currentUser['id'], $currentSelector]
+            );
+        } else {
+            $this->rememberMe->revokeAllUserTokens($this->currentUser['id']);
+        }
+        
+        logMessage('info', 'Revoked all other remember me sessions', [
+            'user_id' => $this->currentUser['id'],
+            'kept_selector' => $currentSelector ? substr($currentSelector, 0, 8) . '...' : null
+        ]);
+        
+        return true;
     }
 
     public function generateUniqueId() {

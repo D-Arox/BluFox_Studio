@@ -84,51 +84,24 @@ $ogImage = SITE_URL . '/assets/images/og-home.png';
                     </div>
                     
                     <div class="hero-stats">
-                        <div class="stat">
+                        <div class="hero-stat">
                             <span class="stat-number">50K+</span>
                             <span class="stat-label">Operations/Hour</span>
                         </div>
-                        <div class="stat">
+                        <div class="hero-stat">
                             <span class="stat-number">99.9%</span>
                             <span class="stat-label">Uptime</span>
                         </div>
-                        <div class="stat">
+                        <div class="hero-stat">
                             <span class="stat-number">500+</span>
                             <span class="stat-label">Games Using Vault</span>
                         </div>
                     </div>
                 </div>
-                
-                <div class="hero-visual">
-                    <div class="hero-dashboard">
-                        <!-- Animated dashboard preview -->
-                        <div class="dashboard-window">
-                            <div class="dashboard-header">
-                                <div class="window-controls">
-                                    <span class="control red"></span>
-                                    <span class="control yellow"></span>
-                                    <span class="control green"></span>
-                                </div>
-                                <span class="window-title">Vault Dashboard</span>
-                            </div>
-                            <div class="dashboard-content">
-                                <div class="stats-row">
-                                    <div class="stat-card">
-                                        <span class="stat-value">1,247</span>
-                                        <span class="stat-name">Active Players</span>
-                                    </div>
-                                    <div class="stat-card">
-                                        <span class="stat-value">99.2%</span>
-                                        <span class="stat-name">Performance</span>
-                                    </div>
-                                </div>
-                                <div class="chart-area">
-                                    <div class="chart-placeholder"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            </div>
+            <div class="scroll-indicator">
+                <span></span>
+                <span></span>
             </div>
         </div>
     </section>
@@ -342,7 +315,78 @@ $ogImage = SITE_URL . '/assets/images/og-home.png';
             </div>
         </div>
     </section>
-    
+
     <?php include __DIR__ . '/components/global/footer.php'; ?>
+
+    <div id="cookie-consent" class="cookie-consent" style="display: none;">
+        <div class="cookie-content">
+            <h4>We use cookies</h4>
+            <p>We use essential cookies for authentication and optional cookies for Google Fonts. You can customize your preferences below.</p>
+            
+            <div class="cookie-options">
+                <label>
+                    <input type="checkbox" id="essential-cookies" checked disabled>
+                    Essential cookies (required for login)
+                </label>
+                <label>
+                    <input type="checkbox" id="font-cookies" checked>
+                    Google Fonts (external fonts)
+                </label>
+            </div>
+            
+            <div class="cookie-buttons">
+                <button class="btn btn-secondary" onclick="rejectCookies()">Reject Optional</button>
+                <button class="btn btn-primary" onclick="acceptCookies()">Accept All</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const consent = localStorage.getItem('cookie_consent');
+            if (!consent) {
+                document.getElementById('cookie-consent').style.display = 'block';
+            } else {
+                loadOptionalResources(JSON.parse(consent));
+            }
+        });
+        
+        function acceptCookies() {
+            const consent = {
+                essential: true,
+                fonts: document.getElementById('font-cookies').checked,
+                timestamp: Date.now()
+            };
+            
+            localStorage.setItem('cookie_consent', JSON.stringify(consent));
+            document.getElementById('cookie-consent').style.display = 'none';
+            loadOptionalResources(consent);
+        }
+        
+        function rejectCookies() {
+            const consent = {
+                essential: true,
+                fonts: false,
+                timestamp: Date.now()
+            };
+            
+            localStorage.setItem('cookie_consent', JSON.stringify(consent));
+            document.getElementById('cookie-consent').style.display = 'none';
+            loadOptionalResources(consent);
+        }
+        
+        function loadOptionalResources(consent) {
+            if (consent.fonts) {
+                // Load Google Fonts
+                const link = document.createElement('link');
+                link.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap';
+                link.rel = 'stylesheet';
+                document.head.appendChild(link);
+            } else {
+                // Use fallback system fonts
+                document.body.classList.add('system-fonts');
+            }
+        }
+    </script>
 </body>
 </html>

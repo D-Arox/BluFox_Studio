@@ -23,13 +23,12 @@ $isAuthenticated = $mainClass->isAuthenticated();
                     <li><a href="/documentation" class="nav-link">Documentation</a></li>
                     <li><a href="/contact" class="nav-link">Contact</a></li>
                 </ul>
-            </nav>
 
-            <div class="header-actions">
+                <div class="header-actions">
                 <?php if ($isAuthenticated): ?>
                     <div class="user-menu">
                         <button class="user-menu-toggle" aria-expanded="false">
-                            <img src="<?php echo htmlspecialchars($currentUser['avatar_url'] ?? '/assets/images/default-avatar.png'); ?>" 
+                            <img src="<?php echo htmlspecialchars($currentUser['avatar_url']); ?>" 
                                  alt="<?php echo htmlspecialchars($currentUser['username']); ?>" 
                                  class="user-avatar">
                             <span class="user-name"><?php echo htmlspecialchars($currentUser['username']); ?></span>
@@ -53,8 +52,9 @@ $isAuthenticated = $mainClass->isAuthenticated();
                         </div>
                     </div>
                 <?php else: ?>
-                    <a href="/auth/login" class="btn btn-primary">
-                        <i class="icon-roblox"></i> Login
+                    <a href="/auth/login" class="btn btn-roblox">
+                        <img src="/assets/images/icons/roblox-icon.png" alt="" class="roblox-login-icon">
+                        Login with Roblox
                     </a>
                 <?php endif; ?>
                 <button class="mobile-menu-toggle">
@@ -63,6 +63,7 @@ $isAuthenticated = $mainClass->isAuthenticated();
                     <span></span>
                 </button>
             </div>
+            </nav>
         </div>
     </div>
 </header>

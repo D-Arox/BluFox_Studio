@@ -32,6 +32,11 @@ define('API_SECRET_KEY', env('API_SECRET_KEY', 'default_api_secret_change_this')
 define('ENCRYPTION_KEY', env('ENCRYPTION_KEY', 'default_encryption_key_change_this'));
 define('SESSION_LIFETIME', (int) env('SESSION_LIFETIME', 7200));
 
+// Remember Me Configuration
+define('REMEMBER_ME_LIFETIME', (int) env('REMEMBER_ME_LIFETIME', 2592000)); // 30 days
+define('REMEMBER_ME_COOKIE_NAME', env('REMEMBER_ME_COOKIE_NAME', 'remember_me'));
+define('REMEMBER_ME_MAX_TOKENS_PER_USER', (int) env('REMEMBER_ME_MAX_TOKENS_PER_USER', 5));
+
 // Database Configuration
 define('DB_HOST', env('DB_HOST', 'localhost'));
 define('DB_NAME', env('DB_NAME', 'blufox_studio'));
@@ -138,6 +143,18 @@ function logMessage($level, $message, $context = []) {
     }
     
     $timestamp = date('Y-m-d H:i:s');
+
+    if (isset($_SESSION['user_id'])) {
+        $context['session_user_id'] = $_SESSION['user_id'];
+    }
+
+    if (isset($_COOKIE[REMEMBER_ME_COOKIE_NAME])) {
+        $parts = explode(':', $_COOKIE[REMEMBER_ME_COOKIE_NAME], 2);
+        if (count($parts) === 2) {
+            $context['remember_me_selector'] = substr($parts[0], 0, 8) . '...';
+        }
+    }
+
     $contextStr = empty($context) ? '' : ' ' . json_encode($context);
     $logLine = "[{$timestamp}] {$level}: {$message}{$contextStr}\n";
     
@@ -210,4 +227,28 @@ function generateJSONLD($type, $data) {
     return '<script type="application/ld+json">' . json_encode($schema, JSON_UNESCAPED_SLASHES) . '</script>';
 }
 
+function isRememberMeEnabled() {
+    return defined('REMEMBER_ME_LIFETIME') && REMEMBER_ME_LIFETIME > 0;
+}
+
+function getRememberMeMaxAge() {
+    return REMEMBER_ME_LIFETIME;
+}
+
+function getRememberMeCookieName() {
+    return REMEMBER_ME_COOKIE_NAME;
+}
+
+function auditRememberMeActivity($userId, $action, $details = []) {
+    $auditData = [
+        'user_id' => $userId,
+        'action' => $action,
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null,
+        'timestamp' => time(),
+        'details' => $details
+    ];
+    
+    logMessage('security', "Remember Me audit: {$action}", $auditData);
+}
 ?>

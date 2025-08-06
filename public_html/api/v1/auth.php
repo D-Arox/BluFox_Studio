@@ -15,7 +15,6 @@ try {
             
             switch ($path) {
                 case '/check':
-                    // Check authentication status
                     $mainClass->jsonResponse([
                         'authenticated' => $mainClass->isAuthenticated(),
                         'user' => $mainClass->getCurrentUser()
@@ -23,7 +22,6 @@ try {
                     break;
                     
                 case '/logout':
-                    // Logout user
                     $robloxOAuth = new RobloxOAuth();
                     $robloxOAuth->logout();
                     
@@ -34,7 +32,6 @@ try {
                     break;
                     
                 case '/update-email':
-                    // Update user email
                     if (!$mainClass->isAuthenticated()) {
                         throw new Exception('Authentication required', 401);
                     }
@@ -49,7 +46,6 @@ try {
                         'email_verified' => false
                     ]);
                     
-                    // Send verification email
                     $verificationToken = bin2hex(random_bytes(32));
                     $verificationUrl = SITE_URL . "/auth/verify-email?token={$verificationToken}";
                     
@@ -75,7 +71,6 @@ try {
                     break;
                     
                 case '/update-preferences':
-                    // Update user preferences
                     if (!$mainClass->isAuthenticated()) {
                         throw new Exception('Authentication required', 401);
                     }
@@ -104,13 +99,12 @@ try {
         case 'GET':
             switch ($path) {
                 case '/user':
-                    // Get current user info
                     if (!$mainClass->isAuthenticated()) {
                         throw new Exception('Authentication required', 401);
                     }
                     
                     $user = $mainClass->getCurrentUser();
-                    unset($user['unique_id']); // Don't expose unique ID
+                    unset($user['unique_id']);
                     
                     $mainClass->jsonResponse($user);
                     break;

@@ -19,6 +19,9 @@ $currentUrl = SITE_URL . $_SERVER['REQUEST_URI'];
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
 <link rel="stylesheet" href="/assets/css/global.css?v=<?php echo filemtime(__DIR__ . '/../../assets/css/global.css'); ?>">
+<link rel="stylesheet" href="/assets/css/components/header.css?v=<?php echo filemtime(__DIR__ . '/../../assets/css/components/header.css'); ?>">
+<link rel="stylesheet" href="/assets/css/components/hero.css?v=<?php echo filemtime(__DIR__ . '/../../assets/css/components/hero.css'); ?>">
+
 
 <?php echo generateJSONLD('Organization', [
     'name' => 'BluFox Studio',
@@ -56,4 +59,3 @@ $currentUrl = SITE_URL . $_SERVER['REQUEST_URI'];
 ]); ?>
 
 <meta name="csrf-token" content="<?php echo generateCSRFToken(); ?>">
-<meta http-equiv="Content-Security-Policy" content="<?php echo getCSPPolicy(); ?>">
