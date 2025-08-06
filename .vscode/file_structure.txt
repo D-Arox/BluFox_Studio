@@ -47,6 +47,7 @@ blufox-studio.com/
 │   │
 │   ├ pages/
 │   │   ├ admin/
+│   │   │   ├ .htacess
 │   │   │   └ index.php
 │   │   │
 │   │   ├ auth/
@@ -56,6 +57,7 @@ blufox-studio.com/
 │   │   └ dashboard/
 │   │       └ index.php
 │   │
+│   ├ .htaccess
 │   └ index.php
 │
 ├ config/
